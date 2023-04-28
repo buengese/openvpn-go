@@ -1,29 +1,31 @@
+// Copyright 2023 Sebastian Bünger
+// SPDX-License-Identifier: AGPL-3.0-only OR MIT
 package flag
 
-func OptionFlag(name string) optionFlag {
-	return optionFlag{name: name}
+func OptionFlag(name string) flagOption {
+	return flagOption{name: name}
 }
 
-type optionFlag struct {
+type flagOption struct {
 	name string
 }
 
-func (o optionFlag) GetName() string {
+func (o flagOption) Name() string {
 	return o.name
 }
 
-func (o optionFlag) ToCli() ([]string, error) {
+func (o flagOption) ToCli() ([]string, error) {
 	return []string{"--" + o.name}, nil
 }
 
-func (o optionFlag) ToConfig() (string, error) {
+func (o flagOption) ToConfig() (string, error) {
 	return o.name, nil
 }
 
-func FromConfig(content string) optionFlag {
-	return optionFlag{name: content}
+func FromConfig(content string) flagOption {
+	return flagOption{name: content}
 }
 
-func (o optionFlag) String() string {
+func (o flagOption) String() string {
 	return o.name
 }

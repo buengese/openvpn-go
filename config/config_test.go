@@ -1,6 +1,9 @@
+// Copyright 2023 Sebastian Bünger
+// SPDX-License-Identifier: AGPL-3.0-only OR MIT
 package config_test
 
 import (
+	"io/ioutil"
 	"testing"
 
 	"github.com/buengese/openvpn-go/config"
@@ -71,6 +74,7 @@ var (
 		param.OptionParam("dev", "tun"),
 		param.OptionParam("remote", "vpn.example.com", "1443"),
 		flag.OptionFlag("nobind"),
+		flag.OptionFlag("auth-user-pass"),
 		param.OptionParam("tun-mtu", "1500"),
 		flag.OptionFlag("persist-tun"),
 		param.OptionParam("remote-cert-tls", "server"),
@@ -85,14 +89,14 @@ var (
 )
 
 func TestFromFile(t *testing.T) {
-	cfg, err := config.FromFile("testdata/test.ovpn", "/tmp", "/tmp")
+	cfg, err := config.FromFile("testdata/test.ovpn")
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	wanted := config.NewConfig("/tmp", "/tmp")
+	wanted := config.NewConfig()
 	wanted.AddOptions(options...)
 
-	assert.ElementsMatch(t, cfg.GetOptions(), wanted.GetOptions())
+	assert.ElementsMatch(t, cfg.Options(), wanted.Options())
 
 	cli, err := cfg.ToCli()
 	require.NoError(t, err)
@@ -100,13 +104,36 @@ func TestFromFile(t *testing.T) {
 }
 
 func TestToFile(t *testing.T) {
-	cfg := config.NewConfig("/tmp", "/tmp")
+	cfg := config.NewConfig()
 	cfg.AddOptions(options...)
 
-	err := cfg.ToFile("testdata/out.ovpn")
+	err := cfg.Save("testdata/out.ovpn")
 	require.NoError(t, err)
 }
 
 func TestToCli(t *testing.T) {
+	cfg := config.NewConfig()
+	cfg.AddOptions(options...)
 
+	_, err := cfg.ToCli()
+	require.NoError(t, err)
+}
+
+func TestRoundTrip(t *testing.T) {
+	cfg, err := config.FromFile("testdata/out.ovpn")
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	f, err := ioutil.TempFile("", "config-test")
+	require.NoError(t, err)
+	err = cfg.Save(f.Name())
+	require.NoError(t, err)
+
+	// compare files
+	original, err := ioutil.ReadFile("testdata/out.ovpn")
+	require.NoError(t, err)
+	roundtrip, err := ioutil.ReadFile(f.Name())
+	require.NoError(t, err)
+
+	assert.Equal(t, original, roundtrip)
 }

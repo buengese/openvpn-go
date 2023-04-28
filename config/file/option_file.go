@@ -1,3 +1,5 @@
+// Copyright 2023 Sebastian Bünger
+// SPDX-License-Identifier: AGPL-3.0-only OR MIT
 package file
 
 import (
@@ -13,15 +15,15 @@ var (
 	ErrNoPath = errors.New("no path")
 )
 
-type optionFile struct {
+type fileOption struct {
 	name     string
 	content  string
 	filePath string
 	inline   bool
 }
 
-func OptionFile(name, filePath, content string, inline bool) optionFile {
-	return optionFile{
+func OptionFile(name, filePath, content string, inline bool) fileOption {
+	return fileOption{
 		name:     name,
 		filePath: filePath,
 		content:  content,
@@ -29,30 +31,30 @@ func OptionFile(name, filePath, content string, inline bool) optionFile {
 	}
 }
 
-func (o optionFile) GetName() string {
+func (o fileOption) Name() string {
 	return o.name
 }
 
-func FromConfig(name, content string, inline bool) (optionFile, error) {
-	return optionFile{name: name, content: content}, nil
+func FromConfig(name, content string, inline bool) (fileOption, error) {
+	return fileOption{name: name, content: content, inline: inline}, nil
 }
 
-func FromFile(name, filePath string, inline bool) (optionFile, error) {
+func FromFile(name, filePath string, inline bool) (fileOption, error) {
 	content, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return optionFile{}, err
+		return fileOption{}, err
 	}
-	return optionFile{name: name, content: string(content), filePath: filePath}, nil
+	return fileOption{name: name, content: string(content), filePath: filePath}, nil
 }
 
-func (o optionFile) Save() error {
+func (o fileOption) Save() error {
 	if o.filePath == "" {
 		return ErrNoPath
 	}
 	return ioutil.WriteFile(o.filePath, []byte(o.content), 0600)
 }
 
-func (o optionFile) tempFile() (string, error) {
+func (o fileOption) tempFile() (string, error) {
 	file, err := ioutil.TempFile("", "ovpn-")
 	if err != nil {
 		return "", err
@@ -62,7 +64,7 @@ func (o optionFile) tempFile() (string, error) {
 	return file.Name(), nil
 }
 
-func (o optionFile) ToCli() ([]string, error) {
+func (o fileOption) ToCli() ([]string, error) {
 	filePath := o.filePath
 	var err error
 	if o.filePath != "" {
@@ -80,7 +82,7 @@ func (o optionFile) ToCli() ([]string, error) {
 	return []string{"--" + o.name, filePath}, err
 }
 
-func (o optionFile) ToConfig() (string, error) {
+func (o fileOption) ToConfig() (string, error) {
 	if o.inline {
 		escaped, err := escapeXml(o.content)
 		if err != nil {
@@ -95,7 +97,7 @@ func (o optionFile) ToConfig() (string, error) {
 	return fmt.Sprintf("%s %s", o.name, filePath), nil
 }
 
-func (o optionFile) String() string {
+func (o fileOption) String() string {
 	return o.content
 }
 

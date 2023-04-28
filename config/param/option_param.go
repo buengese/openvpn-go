@@ -1,3 +1,5 @@
+// Copyright 2023 Sebastian Bünger
+// SPDX-License-Identifier: AGPL-3.0-only OR MIT
 package param
 
 import (
@@ -9,35 +11,35 @@ var (
 	ErrNoParam = errors.New("no param")
 )
 
-func OptionParam(name string, values ...string) optionParam {
-	return optionParam{name: name, values: values}
+func OptionParam(name string, values ...string) paramOption {
+	return paramOption{name: name, values: values}
 }
 
-type optionParam struct {
+type paramOption struct {
 	name   string
 	values []string
 }
 
-func (o optionParam) GetName() string {
+func (o paramOption) Name() string {
 	return o.name
 }
 
-func (o optionParam) ToCli() ([]string, error) {
+func (o paramOption) ToCli() ([]string, error) {
 	return append([]string{"--" + o.name}, o.values...), nil
 }
 
-func (o optionParam) ToConfig() (string, error) {
+func (o paramOption) ToConfig() (string, error) {
 	return o.name + " " + strings.Join(o.values, " "), nil
 }
 
-func (o optionParam) String() string {
+func (o paramOption) String() string {
 	return o.name + " " + strings.Join(o.values, " ")
 }
 
-func FromConfig(content string) (optionParam, error) {
+func FromConfig(content string) (paramOption, error) {
 	parts := strings.Split(content, " ")
 	if len(parts) < 2 {
-		return optionParam{}, ErrNoParam
+		return paramOption{}, ErrNoParam
 	}
-	return optionParam{name: parts[0], values: parts[1:]}, nil
+	return paramOption{name: parts[0], values: parts[1:]}, nil
 }
