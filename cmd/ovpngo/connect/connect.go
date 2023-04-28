@@ -1,0 +1,73 @@
+// Copyright 2023 Sebastian Bünger
+// SPDX-License-Identifier: AGPL-3.0-only OR MIT
+package connect
+
+import (
+	"context"
+	"os"
+	"os/signal"
+
+	"github.com/buengese/openvpn-go/config"
+	"github.com/buengese/openvpn-go/internal/cmd"
+	"github.com/buengese/openvpn-go/internal/logging"
+	"github.com/buengese/openvpn-go/process"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+)
+
+var (
+	username string
+	password string
+)
+
+var Command = &cobra.Command{
+	Use:          "connect <config-file>",
+	Short:        `connect`,
+	SilenceUsage: true,
+	RunE: func(command *cobra.Command, args []string) error {
+		cmd.CheckArgs(1, 1, command, args)
+		return connectE(command.Context(), args[0])
+	},
+}
+
+func AddFlags(cmdFlags *pflag.FlagSet) {
+	cmdFlags.StringVarP(&username, "username", "u", "", "Username for authentication")
+	cmdFlags.StringVarP(&password, "password", "p", "", "Password for authentication")
+}
+
+func connectE(ctx context.Context, cfgpath string) error {
+	conf, err := config.FromFile(cfgpath)
+	if err != nil {
+		logging.GetLogger().Fatal().
+			Err(err).
+			Msg("failed to load config")
+	}
+	// temporary workaround
+	conf.SetParam("key", "PrivateKey.key")
+	if username != "" && password != "" {
+		conf.SetAuth(username, password, false)
+	}
+	proc := process.New(ctx, "openvpn", conf, true)
+	err = proc.Start()
+	if err != nil {
+		logging.GetLogger().Fatal().
+			Err(err).
+			Msg("failed to start openvpn process")
+	}
+
+	go func() {
+		if err := proc.Wait(); err != nil {
+			logging.GetLogger().Fatal().
+				Err(err).
+				Msg("openvpn process exited")
+		}
+	}()
+
+	// Wait for a termination signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+
+	proc.Stop()
+	return nil
+}
