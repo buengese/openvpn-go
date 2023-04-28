@@ -1,3 +1,5 @@
+// Copyright 2020 BlockDev AG
+// SPDX-License-Identifier: AGPL-3.0-only
 package management
 
 import (
@@ -7,6 +9,33 @@ import (
 	"net"
 	"net/textproto"
 )
+
+type mockMiddleware struct {
+	OnStart        func(CommandWriter) error
+	OnStop         func(CommandWriter) error
+	OnLineReceived func(line string) (bool, error)
+}
+
+func (m *mockMiddleware) Start(cmdWriter CommandWriter) error {
+	if m.OnStart != nil {
+		return m.OnStart(cmdWriter)
+	}
+	return nil
+}
+
+func (m *mockMiddleware) Stop(cmdWriter CommandWriter) error {
+	if m.OnStop != nil {
+		return m.OnStop(cmdWriter)
+	}
+	return nil
+}
+
+func (m *mockMiddleware) ProcessEvent(event string) (consumed bool, err error) {
+	if m.OnLineReceived != nil {
+		return m.OnLineReceived(event)
+	}
+	return true, nil
+}
 
 type mockOpenvpnProcess struct {
 	conn    net.Conn

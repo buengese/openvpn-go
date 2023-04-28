@@ -1,3 +1,5 @@
+// Copyright 2020 BlockDev AG
+// SPDX-License-Identifier: AGPL-3.0-only
 package management
 
 import (
@@ -12,19 +14,19 @@ const cmdSuccess = "SUCCESS"
 const cmdError = "ERROR"
 const endOfCmdOutput = "END"
 
-type channelConnection struct {
+type commandConnection struct {
 	cmdWriter io.Writer
 	cmdOutput chan string
 }
 
-func newChannelConnection(cmdWriter io.Writer, cmdOutput chan string) *channelConnection {
-	return &channelConnection{
+func newCommandConnection(cmdWriter io.Writer, cmdOutput chan string) *commandConnection {
+	return &commandConnection{
 		cmdWriter: cmdWriter,
 		cmdOutput: cmdOutput,
 	}
 }
 
-func (sc *channelConnection) SingleLineCommand(template string, args ...interface{}) (string, error) {
+func (sc *commandConnection) SingleLineCommand(template string, args ...interface{}) (string, error) {
 	cmd := fmt.Sprintf(template, args...)
 
 	_, err := fmt.Fprintf(sc.cmdWriter, "%s\n", cmd)
@@ -52,7 +54,7 @@ func (sc *channelConnection) SingleLineCommand(template string, args ...interfac
 	}
 }
 
-func (sc *channelConnection) MultiLineCommand(template string, args ...interface{}) (string, []string, error) {
+func (sc *commandConnection) MultiLineCommand(template string, args ...interface{}) (string, []string, error) {
 	success, err := sc.SingleLineCommand(template, args...)
 	if err != nil {
 		return "", nil, err

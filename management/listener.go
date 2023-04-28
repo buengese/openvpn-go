@@ -1,13 +1,16 @@
+// Copyright 2020 BlockDev AG
+// SPDX-License-Identifier: AGPL-3.0-only
 package management
 
 import (
 	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"net/textproto"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -32,68 +35,77 @@ func (addr *Addr) String() string {
 
 // Management structure represents connection and interface to openvpn management
 type Management struct {
-	BoundAddress  Addr
-	Connected     chan bool
-	ctx           context.Context
-	cancelContext context.CancelFunc
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	conn         net.Conn
+	BoundAddress Addr
+	Connected    chan bool
+
+	middlewares []Middleware
 
 	shutdownWaiter sync.WaitGroup
 }
 
-// NewManagement creates new manager for given sock address, uses given log prefix for logging and takes a list of middlewares
-func NewManagement(ctx context.Context, socketAddress Addr) *Management {
-	logger := log.Ctx(ctx).With().Str("component", "ovpn-management").Logger()
+// NewManagement creates new manager for given sock address
+func NewManagement(ctx context.Context, addr Addr) *Management {
 	ctx, cancel := context.WithCancel(ctx)
-	ctx = logger.WithContext(ctx)
 
 	return &Management{
-		BoundAddress:  socketAddress,
-		Connected:     make(chan bool, 1),
-		ctx:           ctx,
-		cancelContext: cancel,
+		BoundAddress: addr,
+		Connected:    make(chan bool, 1),
+		ctx:          ctx,
+		cancel:       cancel,
 
 		shutdownWaiter: sync.WaitGroup{},
 	}
 }
 
-// WaitForConnection method starts listener on bind address and returns "real" bound address (with port not zero) and
-// channel which receives true when connection is accepted or false overwise (i.e. listener stop requested). It returns non nil
-// error on any error condition
-func (management *Management) Listen() error {
-	listener, err := net.Listen("tcp", management.BoundAddress.String())
+// AddMiddleware adds middleware to the management interface.
+func (m *Management) AddMiddleware(mw Middleware) {
+	m.middlewares = append(m.middlewares, mw)
+}
+
+// Stop initiates shutdown of management interface
+func (m *Management) Stop() {
+	m.cancel()
+	if m.conn != nil {
+		m.conn.Close()
+	}
+	m.shutdownWaiter.Wait()
+}
+
+// Listen starts listening for incoming connections on given address.
+// It's expected that only one connection will be accepted.
+func (m *Management) Listen() error {
+	listener, err := net.Listen("tcp", m.BoundAddress.String())
 	if err != nil {
-		return errors.Wrap(err, "Failed to bind to socket")
+		return errors.Wrap(err, "failed to bind to socket")
 	}
 
 	netAddress := listener.Addr().(*net.TCPAddr)
-	management.BoundAddress = Addr{
+	m.BoundAddress = Addr{
 		netAddress.IP.String(),
 		netAddress.Port,
 	}
 
-	log.Ctx(management.ctx).Info().
-		Str("address", management.BoundAddress.String()).
+	log.Ctx(m.ctx).Info().
+		Str("address", m.BoundAddress.String()).
 		Msg("Listening for connection")
 
-	management.shutdownWaiter.Add(1)
-	go management.listenForConnection(listener)
+	m.shutdownWaiter.Add(1)
+	go m.listen(listener)
 
 	return nil
 }
 
-// Stop initiates managemnt shutdown. Achieved by context cancel.
-func (management *Management) Stop() {
-	log.Ctx(management.ctx).Info().Msg("Shutdown reuqested")
-	management.cancelContext()
-
-	management.shutdownWaiter.Wait()
-	log.Ctx(management.ctx).Info().Msg("Shutdown finished")
-}
-
-func (management *Management) listenForConnection(listener net.Listener) {
-	defer management.shutdownWaiter.Done()
-	defer listener.Close()
-	defer close(management.Connected)
+// listen method waits for exactly one incoming connection and starts serving it.
+func (m *Management) listen(listener net.Listener) {
+	defer func() {
+		listener.Close()
+		close(m.Connected)
+		m.shutdownWaiter.Done()
+	}()
 
 	// Wait for exactly one connection than stop listening. This goroute will get cleaned up
 	// either after connection is accepted or when the calling function returns (due to context cancel)
@@ -101,7 +113,7 @@ func (management *Management) listenForConnection(listener net.Listener) {
 	go func() {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Ctx(management.ctx).Error().
+			log.Ctx(m.ctx).Error().
 				Err(err).
 				Msg("Connection accept error")
 			close(connChannel)
@@ -110,63 +122,113 @@ func (management *Management) listenForConnection(listener net.Listener) {
 		connChannel <- conn
 	}()
 
-	// Wait for either connection or context cancel. Listener will be closed upon return.
+	// We have a 2 second timeout for connection to be accepted. If it's taking any longer, we assume
+	// that something is wrong with the openvpn process and we return false on Connected channel.
+	// This will cause the openvpn process to be killed.
 	select {
 	case conn := <-connChannel:
 		if conn != nil {
-			management.Connected <- true
-			go management.serveNewConnection(conn)
+			m.Connected <- true
+			m.conn = conn
+			go m.serve()
 		}
-	case <-management.ctx.Done():
-		management.Connected <- false
+	case <-time.After(2 * time.Second):
+		m.Connected <- false
+	case <-m.ctx.Done():
+		m.Connected <- false
 	}
 }
 
-// serveNewConnection method received events from openvpn management interface. For now it just logs them.
-func (management *Management) serveNewConnection(netConn net.Conn) {
-	cleanup := make(chan struct{})
-	go func() {
-		select {
-		case <-management.ctx.Done():
-			netConn.Close()
-		case <-cleanup:
-			return
-		}
+// serve
+func (m *Management) serve() {
+	// ensure connection is closed upon return
+	m.shutdownWaiter.Add(1)
+	defer func() {
+		_ = m.conn.Close()
+		m.shutdownWaiter.Done()
 	}()
-	// Ensure goroutine is cleaned up
-	defer close(cleanup)
-	// Close connection on exit or when context is cancelled
-	defer netConn.Close()
-	management.shutdownWaiter.Add(1)
 
-	log.Ctx(management.ctx).Info().
-		Str("remote", netConn.RemoteAddr().String()).
+	cmdOutput := make(chan string)
+	//make event channel buffered, so we can assure all middlewares are started before first event is delivered to middleware
+	events := make(chan string, 100)
+	connection := newCommandConnection(m.conn, cmdOutput)
+
+	log.Ctx(m.ctx).Info().
+		Str("remote", m.conn.RemoteAddr().String()).
 		Msg("New connection accepted")
 
-	connectionHandler := sync.WaitGroup{}
-	connectionHandler.Add(1)
+	connectionWaiter := sync.WaitGroup{}
+	connectionWaiter.Add(2)
+
 	// Read lines from openvpn management interface and pass them on via channels
 	go func() {
-		defer connectionHandler.Done()
-		management.consumeOpenvpnConnectionOutput(netConn)
+		m.readEvents(cmdOutput, events)
+		connectionWaiter.Done()
 	}()
 
-	//block until output consumption is done - usually when connection is closed by openvpn process
-	connectionHandler.Wait()
-	management.shutdownWaiter.Done()
+	m.startMiddlewares(connection)
+	defer m.stopMiddlewares(connection)
+
+	go func() {
+		m.processEvents(events)
+		connectionWaiter.Done()
+	}()
+	connectionWaiter.Wait()
 }
 
-func (management *Management) consumeOpenvpnConnectionOutput(input io.Reader) {
-	reader := textproto.NewReader(bufio.NewReader(input))
+func (m *Management) startMiddlewares(connection CommandWriter) error {
+	for _, middleware := range m.middlewares {
+		err := middleware.Start(connection)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *Management) stopMiddlewares(connection CommandWriter) {
+	for _, middleware := range m.middlewares {
+		err := middleware.Stop(connection)
+		if err != nil {
+			log.Ctx(m.ctx).Error().
+				Err(err).
+				Msg("failed to stop middleware")
+		}
+	}
+}
+
+func (m *Management) readEvents(cmdOutput, events chan string) {
+	reader := textproto.NewReader(bufio.NewReader(m.conn))
 	for {
 		line, err := reader.ReadLine()
 		if err != nil {
-			log.Ctx(management.ctx).Warn().
-				Err(err).
-				Msg("Connection failed to read")
+			close(cmdOutput)
+			close(events)
 			return
 		}
-		log.Ctx(management.ctx).Trace().
-			Str("event", line).Send()
+		log.Ctx(m.ctx).Debug().
+			Str("channel", "management").
+			Msg(line)
+
+		output := cmdOutput
+		if strings.HasPrefix(line, ">") {
+			output = events
+		}
+		output <- line
+	}
+}
+
+func (m *Management) processEvents(eventChannel chan string) {
+	for event := range eventChannel {
+		lineConsumed := false
+		for _, middleware := range m.middlewares {
+			consumed, err := middleware.ProcessEvent(event)
+			if err != nil {
+				log.Ctx(m.ctx).Error().
+					Err(err).
+					Msg("failed to consume line")
+			}
+			lineConsumed = lineConsumed || consumed
+		}
 	}
 }
