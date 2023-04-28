@@ -1,25 +1,6 @@
-/*
- * go-openvpn -- Go gettable library for wrapping Openvpn functionality in go way.
- *
- * Copyright (C) 2020 BlockDev AG.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License Version 3
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
-
- * You should have received a copy of the GNU Affero General Public License
- * along with this program in the COPYING file.
- * If not, see <http://www.gnu.org/licenses/>.
- */
-
-// Command test util adapted from https://gist.github.com/kglee79/db8f0bf3eafe962e0feddac8451387da
-
-package openvpn
+// Copyright 2023 Sebastian Bünger
+// SPDX-License-Identifier: AGPL-3.0-only OR MIT
+package process
 
 import (
 	"encoding/base64"
@@ -165,8 +146,8 @@ func RunTestExecCmd() {
 		time.Sleep(time.Millisecond * time.Duration(delayMillis))
 	}
 
-	fmt.Fprintf(os.Stdout, stdout)
-	fmt.Fprintf(os.Stderr, stderr)
+	fmt.Fprint(os.Stdout, stdout)
+	fmt.Fprint(os.Stderr, stderr)
 	os.Exit(int(exitCode))
 }
 

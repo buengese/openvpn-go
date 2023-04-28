@@ -1,23 +1,6 @@
-/*
- * go-openvpn -- Go gettable library for wrapping Openvpn functionality in go way.
- *
- * Copyright (C) 2020 BlockDev AG.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License Version 3
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
-
- * You should have received a copy of the GNU Affero General Public License
- * along with this program in the COPYING file.
- * If not, see <http://www.gnu.org/licenses/>.
- */
-
-package openvpn
+// Copyright 2023 Sebastian Bünger
+// SPDX-License-Identifier: AGPL-3.0-only OR MIT
+package process
 
 import (
 	"context"
@@ -25,11 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/buengese/openvpn-go/runner/shell"
+	"github.com/buengese/openvpn-go/internal/shell"
 	"github.com/stretchr/testify/assert"
 )
-
-const testProcessPrefix = "[process-test-log] "
 
 // TestHelperProcess IS ESENTIAL FOR CMD MOCKING - DO NOT DELETE
 func TestHelperProcess(t *testing.T) {
