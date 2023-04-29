@@ -138,7 +138,7 @@ func TestToConfig(t *testing.T) {
 	cfg, err := config.FromFile("testdata/complex.ovpn")
 	require.NoError(t, err)
 
-	_, err = cfg.ToConfig()
+	_, err = cfg.ToString()
 	require.NoError(t, err)
 }
 
@@ -160,7 +160,22 @@ func TestToCliComplex(t *testing.T) {
 	assert.ElementsMatch(t, complexCli, opts)
 }
 
-func TestRoundTrip(t *testing.T) {
+func TestStringRoundTrip(t *testing.T) {
+	cfg := config.NewConfig()
+	cfg.AddOptions(options...)
+
+	s, err := cfg.ToString()
+	require.NoError(t, err)
+	require.NotEmpty(t, s)
+
+	cfg, err = config.FromString(s)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	assert.ElementsMatch(t, cfg.Options, options)
+}
+
+func TestFileRoundTrip(t *testing.T) {
 	cfg, err := config.FromFile("testdata/out.ovpn")
 	require.NoError(t, err)
 	require.NotNil(t, cfg)

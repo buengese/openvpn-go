@@ -60,6 +60,14 @@ func FromFile(filePath string) (*Config, error) {
 	return c, c.read()
 }
 
+// FromString parses a OpenVPN configuration string and returns a Config object.
+func FromString(config string) (*Config, error) {
+	scanner := bufio.NewScanner(strings.NewReader(config))
+	c := NewConfig()
+	return c, c.scanConfig(scanner)
+}
+
+// isFileOption checks if a line matches a known file option.
 func isFileOption(line string) bool {
 	for _, opt := range []string{"ca ", "cert ", "dh ", "extra-certs ", "key ",
 		"pkcs12 ", "tls-auth ", "tls-crypt "} {
@@ -79,6 +87,11 @@ func (c *Config) read() error {
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
+	return c.scanConfig(scanner)
+}
+
+// scanConfig parses a OpenVPN configuration file and adds the options to the Config object.
+func (c *Config) scanConfig(scanner *bufio.Scanner) error {
 	var inlineFile bool = false
 	var buf strings.Builder
 	for scanner.Scan() {
@@ -126,6 +139,22 @@ func (c *Config) read() error {
 		c.addOptions(flag)
 	}
 	return nil
+}
+
+// ToString serializes the Config object and returns it as a string in the OpenVPN configuration format.
+func (c *Config) ToString() (string, error) {
+	var sb strings.Builder
+	for _, item := range c.Options {
+		content, err := item.ToConfig()
+		if err != nil {
+			return "", err
+		}
+		_, err = sb.WriteString(content + "\n")
+		if err != nil {
+			return "", err
+		}
+	}
+	return sb.String(), nil
 }
 
 // Save serializes the Config object and writes it to a file in the OpenVPN configuration format at the given path.
@@ -180,21 +209,6 @@ func (c *Config) ToCli() ([]string, error) {
 	}
 
 	return arguments, nil
-}
-
-func (c *Config) ToConfig() (string, error) {
-	var sb strings.Builder
-	for _, item := range c.Options {
-		content, err := item.ToConfig()
-		if err != nil {
-			return "", err
-		}
-		_, err = sb.WriteString(content + "\n")
-		if err != nil {
-			return "", err
-		}
-	}
-	return sb.String(), nil
 }
 
 // IsFile returns true if the Config object has been loaded from or written to a file.
