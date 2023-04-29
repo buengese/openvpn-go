@@ -19,15 +19,13 @@ type fileOption struct {
 	name     string
 	content  string
 	filePath string
-	inline   bool
 }
 
-func OptionFile(name, filePath, content string, inline bool) fileOption {
+func OptionFile(name, filePath, content string) fileOption {
 	return fileOption{
 		name:     name,
 		filePath: filePath,
 		content:  content,
-		inline:   inline,
 	}
 }
 
@@ -35,8 +33,8 @@ func (o fileOption) Name() string {
 	return o.name
 }
 
-func FromConfig(name, content string, inline bool) (fileOption, error) {
-	return fileOption{name: name, content: content, inline: inline}, nil
+func FromConfig(name, content string) (fileOption, error) {
+	return fileOption{name: name, content: content}, nil
 }
 
 func FromFile(name, filePath string, inline bool) (fileOption, error) {
@@ -83,22 +81,11 @@ func (o fileOption) ToCli() ([]string, error) {
 }
 
 func (o fileOption) ToConfig() (string, error) {
-	if o.inline {
-		escaped, err := escapeXml(o.content)
-		if err != nil {
-			return "", nil
-		}
-		return fmt.Sprintf("<%s>\n%s</%s>", o.name, escaped, o.name), nil
-	}
-	filePath, err := o.tempFile()
+	escaped, err := escapeXml(o.content)
 	if err != nil {
-		return "", err
+		return "", nil
 	}
-	return fmt.Sprintf("%s %s", o.name, filePath), nil
-}
-
-func (o fileOption) String() string {
-	return o.content
+	return fmt.Sprintf("<%s>\n%s</%s>", o.name, escaped, o.name), nil
 }
 
 func escapeXml(content string) (string, error) {

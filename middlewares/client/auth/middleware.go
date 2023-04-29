@@ -39,12 +39,12 @@ func (m *middleware) ProcessEvent(line string) (consumed bool, err error) {
 		return false, nil
 	}
 
-	_, err = m.commandWriter.SingleLineCommand("password 'Auth' %s", m.auth.Password())
+	_, err = m.commandWriter.SingleLineCommand("password 'Auth' %s", m.auth.Password)
 	if err != nil {
 		return true, err
 	}
 
-	_, err = m.commandWriter.SingleLineCommand("username 'Auth' %s", m.auth.Username())
+	_, err = m.commandWriter.SingleLineCommand("username 'Auth' %s", m.auth.Username)
 	if err != nil {
 		return true, err
 	}

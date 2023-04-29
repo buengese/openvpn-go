@@ -37,7 +37,7 @@ type ConfigOption interface {
 
 // Config is a representation of a OpenVPN configuration.
 type Config struct {
-	options    []ConfigOption
+	Options    []ConfigOption
 	Auth       *auth.AuthOption
 	isFile     bool
 	isModified bool
@@ -47,7 +47,7 @@ type Config struct {
 // NewConfig creates a new Config object.
 func NewConfig() *Config {
 	return &Config{
-		options: []ConfigOption{},
+		Options: []ConfigOption{},
 	}
 }
 
@@ -58,6 +58,16 @@ func FromFile(filePath string) (*Config, error) {
 	c.path = filePath
 
 	return c, c.read()
+}
+
+func isFileOption(line string) bool {
+	for _, opt := range []string{"ca ", "cert ", "dh ", "extra-certs ", "key ",
+		"pkcs12 ", "tls-auth ", "tls-crypt "} {
+		if strings.HasPrefix(line, opt) {
+			return true
+		}
+	}
+	return false
 }
 
 // read reads a OpenVPN configuration file and parses it.
@@ -80,7 +90,7 @@ func (c *Config) read() error {
 		if inlineFile {
 			if XMLCloseTag.MatchString(line) {
 				inlineFile = false
-				option, err := file.FromConfig(XMLCloseTag.FindStringSubmatch(line)[1], buf.String(), true)
+				option, err := file.FromConfig(XMLCloseTag.FindStringSubmatch(line)[1], buf.String())
 				if err != nil {
 					return err
 				}
@@ -96,7 +106,17 @@ func (c *Config) read() error {
 			inlineFile = true
 			continue
 		}
-		// try parsing as option first than as flag
+		// load file
+		if isFileOption(line) {
+			parts := strings.SplitN(line, " ", 2)
+			option, err := file.FromFile(parts[0], path.Join(c.Dir(), parts[1]), true)
+			if err != nil {
+				return err
+			}
+			c.addOptions(option)
+			continue
+		}
+		// try parsing as option first
 		if option, err := param.FromConfig(line); err == nil {
 			c.addOptions(option)
 			continue
@@ -117,7 +137,7 @@ func (c *Config) Save(filePath string) error {
 	}
 	defer file.Close()
 
-	for _, item := range c.options {
+	for _, item := range c.Options {
 		content, err := item.ToConfig()
 		if err != nil {
 			return err
@@ -143,7 +163,7 @@ func (c *Config) ToCli() ([]string, error) {
 		arguments = append(arguments, "--config", c.path)
 		return arguments, nil
 	}
-	for _, item := range c.options {
+	for _, item := range c.Options {
 		optionValues, err := item.ToCli()
 		if err != nil {
 			return nil, err
@@ -151,7 +171,7 @@ func (c *Config) ToCli() ([]string, error) {
 
 		arguments = append(arguments, optionValues...)
 	}
-	if c.Auth != nil && c.Auth.AllowFile() {
+	if c.Auth != nil && c.Auth.AllowFile {
 		authValues, err := c.Auth.ToCli()
 		if err != nil {
 			return nil, err
@@ -160,6 +180,21 @@ func (c *Config) ToCli() ([]string, error) {
 	}
 
 	return arguments, nil
+}
+
+func (c *Config) ToConfig() (string, error) {
+	var sb strings.Builder
+	for _, item := range c.Options {
+		content, err := item.ToConfig()
+		if err != nil {
+			return "", err
+		}
+		_, err = sb.WriteString(content + "\n")
+		if err != nil {
+			return "", err
+		}
+	}
+	return sb.String(), nil
 }
 
 // IsFile returns true if the Config object has been loaded from or written to a file.
@@ -173,7 +208,7 @@ func (c *Config) Dir() string {
 }
 
 func (c *Config) addOptions(options ...ConfigOption) {
-	c.options = append(c.options, options...)
+	c.Options = append(c.Options, options...)
 }
 
 // AddOptions adds one or more ConfigOption to the Config object.
@@ -182,17 +217,12 @@ func (c *Config) AddOptions(options ...ConfigOption) {
 	c.addOptions(options...)
 }
 
-// Options returns all ConfigOptions of the Config object.
-func (c *Config) Options() []ConfigOption {
-	return c.options
-}
-
 // SetParam sets the value of a parameter.
 func (c *Config) SetParam(name string, values ...string) {
-	for i, option := range c.options {
+	for i, option := range c.Options {
 		if option.Name() == name {
 			c.isModified = true
-			c.options[i] = param.OptionParam(name, values...)
+			c.Options[i] = param.OptionParam(name, values...)
 			return
 		}
 	}
@@ -201,7 +231,7 @@ func (c *Config) SetParam(name string, values ...string) {
 
 // SetFlag sets a flag.
 func (c *Config) SetFlag(name string) {
-	for _, option := range c.options {
+	for _, option := range c.Options {
 		if option.Name() == name {
 			return
 		}

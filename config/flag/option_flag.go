@@ -25,7 +25,3 @@ func (o flagOption) ToConfig() (string, error) {
 func FromConfig(content string) flagOption {
 	return flagOption{name: content}
 }
-
-func (o flagOption) String() string {
-	return o.name
-}

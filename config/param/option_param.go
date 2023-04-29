@@ -32,10 +32,6 @@ func (o paramOption) ToConfig() (string, error) {
 	return o.name + " " + strings.Join(o.values, " "), nil
 }
 
-func (o paramOption) String() string {
-	return o.name + " " + strings.Join(o.values, " ")
-}
-
 func FromConfig(content string) (paramOption, error) {
 	parts := strings.Split(content, " ")
 	if len(parts) < 2 {

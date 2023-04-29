@@ -9,39 +9,27 @@ import (
 )
 
 type AuthOption struct {
-	username  string
-	password  string
-	allowFile bool
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	AllowFile bool   `json:"allow_file"`
 }
 
 func OptionAuth(username, password string, file bool) *AuthOption {
-	return &AuthOption{username: username, password: password, allowFile: file}
+	return &AuthOption{Username: username, Password: password, AllowFile: file}
 }
 
 func (o *AuthOption) ToCli() ([]string, error) {
-	if o.allowFile {
+	if o.AllowFile {
 		f, err := ioutil.TempFile("", "ovpn-pass-")
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot create temporary file")
 		}
 		defer f.Close()
-		_, err = f.WriteString(o.username + "\n" + o.password)
+		_, err = f.WriteString(o.Username + "\n" + o.Password)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot write to temporary file")
 		}
 		return []string{"--auth-user-pass", f.Name()}, nil
 	}
 	return []string{}, nil
-}
-
-func (o *AuthOption) AllowFile() bool {
-	return o.allowFile
-}
-
-func (o *AuthOption) Username() string {
-	return o.username
-}
-
-func (o *AuthOption) Password() string {
-	return o.password
 }
