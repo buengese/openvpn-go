@@ -82,9 +82,32 @@ var (
 		param.OptionParam("cipher", "AES-256-CBC"),
 		param.OptionParam("auth", "SHA512"),
 
-		file.OptionFile("ca", "", caCert, true),
+		file.OptionFile("ca", "", caCert),
 		param.OptionParam("key-direction", "1"),
-		file.OptionFile("tls-auth", "", tlsKey, true),
+		file.OptionFile("tls-auth", "", tlsKey),
+	}
+
+	complexCli = []string{
+		"--client",
+		"--dev", "tun0",
+		"--proto", "udp",
+		"--nobind",
+		"--ns-cert-type", "server",
+		"--persist-key",
+		"--persist-tun",
+		"--reneg-sec", "0",
+		"--dhcp-option", "DNS", "8.8.8.8",
+		"--dhcp-option", "DNS", "8.8.4.4",
+		"--redirect-gateway",
+		"--verb", "5",
+		"--auth-user-pass",
+		"--ca", "testdata/CACertificate.crt",
+		"--cert", "testdata/UserCertificate.crt",
+		"--remote", "fr.lazerpenguin.com", "443",
+		"--cipher", "AES-256-GCM",
+		"--auth", "SHA256",
+		"--keysize", "256",
+		"--route-nopull",
 	}
 )
 
@@ -96,7 +119,7 @@ func TestFromFile(t *testing.T) {
 	wanted := config.NewConfig()
 	wanted.AddOptions(options...)
 
-	assert.ElementsMatch(t, cfg.Options(), wanted.Options())
+	assert.ElementsMatch(t, cfg.Options, wanted.Options)
 
 	cli, err := cfg.ToCli()
 	require.NoError(t, err)
@@ -111,12 +134,30 @@ func TestToFile(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestToConfig(t *testing.T) {
+	cfg, err := config.FromFile("testdata/complex.ovpn")
+	require.NoError(t, err)
+
+	_, err = cfg.ToConfig()
+	require.NoError(t, err)
+}
+
 func TestToCli(t *testing.T) {
 	cfg := config.NewConfig()
 	cfg.AddOptions(options...)
 
 	_, err := cfg.ToCli()
 	require.NoError(t, err)
+}
+
+func TestToCliComplex(t *testing.T) {
+	cfg, err := config.FromFile("testdata/complex.ovpn")
+	require.NoError(t, err)
+	cfg.SetFlag("route-nopull")
+
+	opts, err := cfg.ToCli()
+	require.NoError(t, err)
+	assert.ElementsMatch(t, complexCli, opts)
 }
 
 func TestRoundTrip(t *testing.T) {
