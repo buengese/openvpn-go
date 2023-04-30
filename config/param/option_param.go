@@ -24,6 +24,10 @@ func (o paramOption) Name() string {
 	return o.name
 }
 
+func (o paramOption) Value() string {
+	return strings.Join(o.values, " ")
+}
+
 func (o paramOption) ToCli() ([]string, error) {
 	return append([]string{"--" + o.name}, o.values...), nil
 }

@@ -33,6 +33,10 @@ func (o fileOption) Name() string {
 	return o.name
 }
 
+func (o fileOption) Value() string {
+	return o.content
+}
+
 func FromConfig(name, content string) (fileOption, error) {
 	return fileOption{name: name, content: content}, nil
 }

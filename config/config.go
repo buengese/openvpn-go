@@ -31,6 +31,7 @@ var (
 // ConfigOption is an interface for all configuration options.
 type ConfigOption interface {
 	Name() string
+	Value() string
 	ToConfig() (string, error)
 	ToCli() ([]string, error)
 }
@@ -229,6 +230,15 @@ func (c *Config) addOptions(options ...ConfigOption) {
 func (c *Config) AddOptions(options ...ConfigOption) {
 	c.isModified = true
 	c.addOptions(options...)
+}
+
+func (c *Config) GetOption(name string) ConfigOption {
+	for _, option := range c.Options {
+		if option.Name() == name {
+			return option
+		}
+	}
+	return nil
 }
 
 // SetParam sets the value of a parameter.

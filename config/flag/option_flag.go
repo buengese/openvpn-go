@@ -14,6 +14,10 @@ func (o flagOption) Name() string {
 	return o.name
 }
 
+func (o flagOption) Value() string {
+	return ""
+}
+
 func (o flagOption) ToCli() ([]string, error) {
 	return []string{"--" + o.name}, nil
 }
