@@ -28,7 +28,7 @@ type middleware struct {
 }
 
 // NewMiddleware creates state middleware for given list of callback listeners
-func NewMiddleware(listeners ...Callback) management.Middleware {
+func NewMiddleware(listeners ...Callback) *middleware {
 	return &middleware{
 		listeners: listeners,
 	}
