@@ -287,7 +287,8 @@ func (c *Config) SetDevice(device string) {
 
 // SetTLSCaCert sets the CA certificate for TLS authentication.
 func (c *Config) SetTLSCaCert(caFile string) error {
-	f, err := file.FromFile("ca", caFile, true)
+	path := path.Join(c.Dir(), caFile)
+	f, err := file.FromFile("ca", path, true)
 	if err != nil {
 		return err
 	}
@@ -296,13 +297,20 @@ func (c *Config) SetTLSCaCert(caFile string) error {
 }
 
 // SetTLSClientCert sets the client certificate for TLS authentication.
-func (c *Config) SetTLSPrivatePubKey(certFile string, keyFile string) error {
-	f, err := file.FromFile("cert", certFile, true)
+func (c *Config) SetTLSPrivatePubKey(certFile string) error {
+	path := path.Join(c.Dir(), certFile)
+	f, err := file.FromFile("cert", path, true)
 	if err != nil {
 		return err
 	}
 	c.AddOptions(f)
-	f, err = file.FromFile("key", keyFile, true)
+	return nil
+}
+
+// SetTLSPrivateKey sets the client private key for TLS authentication.
+func (c *Config) SetTLSPrivateKey(keyFile string) error {
+	path := path.Join(c.Dir(), keyFile)
+	f, err := file.FromFile("key", path, true)
 	if err != nil {
 		return err
 	}
@@ -312,7 +320,8 @@ func (c *Config) SetTLSPrivatePubKey(certFile string, keyFile string) error {
 
 // SetTLSCrypt sets the tls-crypt key for TLS authentication.
 func (c *Config) SetTLSCrypt(cryptFile string) error {
-	f, err := file.FromFile("tls-crypt", cryptFile, true)
+	path := path.Join(c.Dir(), cryptFile)
+	f, err := file.FromFile("tls-crypt", path, true)
 	if err != nil {
 		return err
 	}
