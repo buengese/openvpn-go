@@ -297,7 +297,7 @@ func (c *Config) SetTLSCaCert(caFile string) error {
 }
 
 // SetTLSClientCert sets the client certificate for TLS authentication.
-func (c *Config) SetTLSPrivatePubKey(certFile string) error {
+func (c *Config) SetTLSClientCert(certFile string) error {
 	path := path.Join(c.Dir(), certFile)
 	f, err := file.FromFile("cert", path, true)
 	if err != nil {
