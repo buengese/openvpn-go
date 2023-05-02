@@ -37,7 +37,28 @@ func (o paramOption) ToConfig() (string, error) {
 }
 
 func FromConfig(content string) (paramOption, error) {
-	parts := strings.Split(content, " ")
+	// need simple state machine here
+	var parts []string
+	inQuotes := false
+	param := ""
+	for _, c := range content {
+		if c == '"' || c == '\'' {
+			inQuotes = !inQuotes
+		}
+		if inQuotes {
+			param += string(c)
+			continue
+		}
+		if c == ' ' && !inQuotes {
+			parts = append(parts, param)
+			param = ""
+			continue
+		}
+		param += string(c)
+	}
+	if param != "" {
+		parts = append(parts, param)
+	}
 	if len(parts) < 2 {
 		return paramOption{}, ErrNoParam
 	}

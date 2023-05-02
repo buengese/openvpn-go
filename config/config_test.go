@@ -81,6 +81,7 @@ var (
 		param.OptionParam("verb", "3"),
 		param.OptionParam("cipher", "AES-256-CBC"),
 		param.OptionParam("auth", "SHA512"),
+		param.OptionParam("pull-filter", "ignore", "'redirect-gateway ipv6'"),
 
 		file.OptionFile("ca", "", caCert),
 		param.OptionParam("key-direction", "1"),
