@@ -24,8 +24,8 @@ type Process struct {
 	config *config.Config
 	cmd    *shell.Command
 
-	connectManagement bool
-	Management        *management.Management
+	useManagement bool
+	Management    *management.Management
 }
 
 // New creates a new openvpn process with the given configuration.
@@ -37,19 +37,22 @@ func New(ctx context.Context, openvpnBinary string, config *config.Config, useMa
 		cmd.SetWorkdir(config.Dir())
 	}
 
-	return &Process{
+	p := &Process{
 		ctx:    ctx,
 		config: config,
 		cmd:    cmd,
 
-		connectManagement: useManagement,
+		useManagement: useManagement,
 	}
+	if useManagement {
+		p.Management = management.NewManagement(p.ctx, management.LocalhostOnRandomPort)
+	}
+	return p
 }
 
 // startWithManagement starts the openvpn process and the management interface.
 // It returns an error if the process could not be started or the management interface could not be connected.
 func (p *Process) startWithManagement() error {
-	p.Management = management.NewManagement(p.ctx, management.LocalhostOnRandomPort)
 	if p.config.Auth != nil {
 		p.Management.AddMiddleware(auth.NewMiddleware(p.config.Auth))
 		p.config.SetFlag("management-query-passwords")
@@ -108,7 +111,7 @@ func (p *Process) startNoManagement() error {
 
 // Start starts the openvpn process
 func (p *Process) Start() error {
-	if p.connectManagement {
+	if p.useManagement {
 		return p.startWithManagement()
 	}
 	return p.startNoManagement()
