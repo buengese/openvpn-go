@@ -3,6 +3,7 @@
 package config_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -81,7 +82,7 @@ var (
 		param.OptionParam("verb", "3"),
 		param.OptionParam("cipher", "AES-256-CBC"),
 		param.OptionParam("auth", "SHA512"),
-		param.OptionParam("pull-filter", "ignore", "'redirect-gateway ipv6'"),
+		param.OptionParam("pull-filter", "ignore", "\"redirect-gateway ipv6\""),
 
 		file.OptionFile("ca", "", caCert),
 		param.OptionParam("key-direction", "1"),
@@ -147,8 +148,10 @@ func TestToCli(t *testing.T) {
 	cfg := config.NewConfig()
 	cfg.AddOptions(options...)
 
-	_, err := cfg.ToCli()
+	opts, err := cfg.ToCli()
 	require.NoError(t, err)
+
+	fmt.Printf("%+v", opts)
 }
 
 func TestToCliComplex(t *testing.T) {
@@ -159,6 +162,16 @@ func TestToCliComplex(t *testing.T) {
 	opts, err := cfg.ToCli()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, complexCli, opts)
+}
+
+func TestModify(t *testing.T) {
+	cfg, err := config.FromFile("testdata/complex.ovpn")
+	require.NoError(t, err)
+
+	assert.True(t, cfg.RemoveOption("verb"))
+	cfg.SetParam("verb", "3")
+
+	assert.Equal(t, param.OptionParam("verb", "3"), cfg.GetOption("verb"))
 }
 
 func TestStringRoundTrip(t *testing.T) {

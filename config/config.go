@@ -241,25 +241,30 @@ func (c *Config) GetOption(name string) ConfigOption {
 	return nil
 }
 
-// SetParam sets the value of a parameter.
-func (c *Config) SetParam(name string, values ...string) {
-	for i, option := range c.Options {
+func (c *Config) RemoveOption(name string) bool {
+	index := -1
+	for idx, option := range c.Options {
 		if option.Name() == name {
-			c.isModified = true
-			c.Options[i] = param.OptionParam(name, values...)
-			return
+			index = idx
+			break
 		}
 	}
+	if index == -1 {
+		return false
+	}
+
+	c.Options[index] = c.Options[len(c.Options)-1]
+	c.Options = c.Options[:len(c.Options)-1]
+	return true
+}
+
+// SetParam sets the value of a parameter.
+func (c *Config) SetParam(name string, values ...string) {
 	c.AddOptions(param.OptionParam(name, values...))
 }
 
 // SetFlag sets a flag.
 func (c *Config) SetFlag(name string) {
-	for _, option := range c.Options {
-		if option.Name() == name {
-			return
-		}
-	}
 	c.AddOptions(flag.OptionFlag(name))
 }
 
