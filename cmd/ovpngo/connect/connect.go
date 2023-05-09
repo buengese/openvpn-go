@@ -6,10 +6,12 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/buengese/openvpn-go/config"
 	"github.com/buengese/openvpn-go/internal/cmd"
 	"github.com/buengese/openvpn-go/internal/logging"
+	"github.com/buengese/openvpn-go/middlewares/state"
 	"github.com/buengese/openvpn-go/process"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -44,10 +46,13 @@ func connectE(ctx context.Context, cfgpath string) error {
 	}
 	// temporary workaround
 	conf.SetParam("key", "PrivateKey.key")
+	// ser user password
 	if username != "" && password != "" {
 		conf.SetAuth(username, password, false)
 	}
 	proc := process.New(ctx, "openvpn", conf, true)
+	statemw := state.NewMiddleware()
+	proc.Management.AddMiddleware(statemw)
 	err = proc.Start()
 	if err != nil {
 		logging.GetLogger().Fatal().
@@ -62,6 +67,13 @@ func connectE(ctx context.Context, cfgpath string) error {
 				Msg("openvpn process exited")
 		}
 	}()
+
+	err = statemw.WaitForState(process.ConnectedState, 5*time.Second)
+	if err != nil {
+		logging.GetLogger().Fatal().
+			Err(err).
+			Msg("connection wait timed out")
+	}
 
 	// Wait for a termination signal
 	quit := make(chan os.Signal, 1)
