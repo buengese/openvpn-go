@@ -70,6 +70,9 @@ func (m *middleware) ProcessEvent(line string) (bool, error) {
 		return true, err
 	}
 
+	m.mutex.Lock()
+	m.state = state
+	m.mutex.Unlock()
 	m.callListeners(state)
 	return true, nil
 }
