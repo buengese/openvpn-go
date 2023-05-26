@@ -37,11 +37,7 @@ func (o fileOption) Value() string {
 	return o.content
 }
 
-func FromConfig(name, content string) (fileOption, error) {
-	return fileOption{name: name, content: content}, nil
-}
-
-func FromFile(name, filePath string, inline bool) (fileOption, error) {
+func FromPath(name, filePath string, inline bool) (fileOption, error) {
 	content, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return fileOption{}, err
@@ -84,12 +80,12 @@ func (o fileOption) ToCli() ([]string, error) {
 	return []string{"--" + o.name, filePath}, err
 }
 
-func (o fileOption) ToConfig() (string, error) {
+func (o fileOption) ToLines() (string, error) {
 	escaped, err := escapeXml(o.content)
 	if err != nil {
 		return "", nil
 	}
-	return fmt.Sprintf("<%s>\n%s</%s>", o.name, escaped, o.name), nil
+	return fmt.Sprintf("<%s>\n%s\n</%s>", o.name, escaped, o.name), nil
 }
 
 func escapeXml(content string) (string, error) {

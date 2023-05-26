@@ -55,7 +55,7 @@ func New(ctx context.Context, openvpnBinary string, config *config.Config, useMa
 func (p *Process) startWithManagement() error {
 	if p.config.Auth != nil {
 		p.Management.AddMiddleware(auth.NewMiddleware(p.config.Auth))
-		p.config.SetFlag("management-query-passwords")
+		p.config.AddFlag("management-query-passwords")
 	}
 	err := p.Management.Listen()
 	if err != nil {

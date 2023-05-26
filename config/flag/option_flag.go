@@ -22,7 +22,7 @@ func (o flagOption) ToCli() ([]string, error) {
 	return []string{"--" + o.name}, nil
 }
 
-func (o flagOption) ToConfig() (string, error) {
+func (o flagOption) ToLines() (string, error) {
 	return o.name, nil
 }
 

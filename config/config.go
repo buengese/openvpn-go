@@ -32,7 +32,7 @@ var (
 type ConfigOption interface {
 	Name() string
 	Value() string
-	ToConfig() (string, error)
+	ToLines() (string, error)
 	ToCli() ([]string, error)
 }
 
@@ -104,10 +104,7 @@ func (c *Config) scanConfig(scanner *bufio.Scanner) error {
 		if inlineFile {
 			if XMLCloseTag.MatchString(line) {
 				inlineFile = false
-				option, err := file.FromConfig(XMLCloseTag.FindStringSubmatch(line)[1], buf.String())
-				if err != nil {
-					return err
-				}
+				option := file.OptionFile(XMLCloseTag.FindStringSubmatch(line)[1], "", buf.String())
 				c.addOptions(option)
 				buf.Reset()
 				continue
@@ -123,7 +120,7 @@ func (c *Config) scanConfig(scanner *bufio.Scanner) error {
 		// load file
 		if isFileOption(line) {
 			parts := strings.SplitN(line, " ", 2)
-			option, err := file.FromFile(parts[0], path.Join(c.Dir(), parts[1]), true)
+			option, err := file.FromPath(parts[0], path.Join(c.Dir(), parts[1]), true)
 			if err != nil {
 				return err
 			}
@@ -131,7 +128,7 @@ func (c *Config) scanConfig(scanner *bufio.Scanner) error {
 			continue
 		}
 		// try parsing as option first
-		if option, err := param.FromConfig(line); err == nil {
+		if option, err := param.FromLine(line); err == nil {
 			c.addOptions(option)
 			continue
 		}
@@ -146,7 +143,7 @@ func (c *Config) scanConfig(scanner *bufio.Scanner) error {
 func (c *Config) ToString() (string, error) {
 	var sb strings.Builder
 	for _, item := range c.Options {
-		content, err := item.ToConfig()
+		content, err := item.ToLines()
 		if err != nil {
 			return "", err
 		}
@@ -168,7 +165,7 @@ func (c *Config) Save(filePath string) error {
 	defer file.Close()
 
 	for _, item := range c.Options {
-		content, err := item.ToConfig()
+		content, err := item.ToLines()
 		if err != nil {
 			return err
 		}
@@ -259,13 +256,17 @@ func (c *Config) RemoveOption(name string) bool {
 }
 
 // SetParam sets the value of a parameter.
-func (c *Config) SetParam(name string, values ...string) {
+func (c *Config) AddParam(name string, values ...string) {
 	c.AddOptions(param.OptionParam(name, values...))
 }
 
 // SetFlag sets a flag.
-func (c *Config) SetFlag(name string) {
+func (c *Config) AddFlag(name string) {
 	c.AddOptions(flag.OptionFlag(name))
+}
+
+func (c *Config) AddFile(name string, content string) {
+	c.AddOptions(file.OptionFile(name, "", content))
 }
 
 // SetAuth sets username and password for authentication.
@@ -276,24 +277,24 @@ func (c *Config) SetAuth(username, password string, allowFile bool) {
 
 // SetManagementAddress sets the IP address and port of the management interface.
 func (c *Config) SetManagementAddress(ip string, port int) {
-	c.SetParam("management", ip, strconv.Itoa(port))
-	c.SetFlag("management-client")
+	c.AddParam("management", ip, strconv.Itoa(port))
+	c.AddFlag("management-client")
 }
 
 // SetPort sets the port of the OpenVPN server.
 func (c *Config) SetPort(port int) {
-	c.SetParam("port", strconv.Itoa(port))
+	c.AddParam("port", strconv.Itoa(port))
 }
 
 // SetDevice sets the device of the OpenVPN server.
 func (c *Config) SetDevice(device string) {
-	c.SetParam("dev", device)
+	c.AddParam("dev", device)
 }
 
 // SetTLSCaCert sets the CA certificate for TLS authentication.
 func (c *Config) SetTLSCaCert(caFile string) error {
 	path := path.Join(c.Dir(), caFile)
-	f, err := file.FromFile("ca", path, true)
+	f, err := file.FromPath("ca", path, true)
 	if err != nil {
 		return err
 	}
@@ -304,7 +305,7 @@ func (c *Config) SetTLSCaCert(caFile string) error {
 // SetTLSClientCert sets the client certificate for TLS authentication.
 func (c *Config) SetTLSClientCert(certFile string) error {
 	path := path.Join(c.Dir(), certFile)
-	f, err := file.FromFile("cert", path, true)
+	f, err := file.FromPath("cert", path, true)
 	if err != nil {
 		return err
 	}
@@ -315,7 +316,7 @@ func (c *Config) SetTLSClientCert(certFile string) error {
 // SetTLSPrivateKey sets the client private key for TLS authentication.
 func (c *Config) SetTLSPrivateKey(keyFile string) error {
 	path := path.Join(c.Dir(), keyFile)
-	f, err := file.FromFile("key", path, true)
+	f, err := file.FromPath("key", path, true)
 	if err != nil {
 		return err
 	}
@@ -326,27 +327,10 @@ func (c *Config) SetTLSPrivateKey(keyFile string) error {
 // SetTLSCrypt sets the tls-crypt key for TLS authentication.
 func (c *Config) SetTLSCrypt(cryptFile string) error {
 	path := path.Join(c.Dir(), cryptFile)
-	f, err := file.FromFile("tls-crypt", path, true)
+	f, err := file.FromPath("tls-crypt", path, true)
 	if err != nil {
 		return err
 	}
 	c.AddOptions(f)
 	return nil
-}
-
-// SetReconnectRetry sets the number of reconnect attempts.
-func (c *Config) SetReconnectRetry(retry int) {
-	c.SetFlag("single-session")
-	c.SetFlag("tls-exit")
-	c.SetParam("connect-retry-max", strconv.Itoa(retry))
-}
-
-// SetKeepAlive sets the keepalive interval and timeout.
-func (c *Config) SetKeepAlive(interval, timeout int) {
-	c.SetParam("keepalive", strconv.Itoa(interval), strconv.Itoa(timeout))
-}
-
-// SetPingRemote sets the ping interval and timeout.
-func (c *Config) SetPingRemote() {
-	c.SetFlag("ping-timer-rem")
 }

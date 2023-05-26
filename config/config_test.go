@@ -157,7 +157,7 @@ func TestToCli(t *testing.T) {
 func TestToCliComplex(t *testing.T) {
 	cfg, err := config.FromFile("testdata/complex.ovpn")
 	require.NoError(t, err)
-	cfg.SetFlag("route-nopull")
+	cfg.AddFlag("route-nopull")
 
 	opts, err := cfg.ToCli()
 	require.NoError(t, err)
@@ -169,7 +169,7 @@ func TestModify(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, cfg.RemoveOption("verb"))
-	cfg.SetParam("verb", "3")
+	cfg.AddParam("verb", "3")
 
 	assert.Equal(t, param.OptionParam("verb", "3"), cfg.GetOption("verb"))
 }

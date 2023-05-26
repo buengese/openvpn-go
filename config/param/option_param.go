@@ -32,11 +32,11 @@ func (o paramOption) ToCli() ([]string, error) {
 	return append([]string{"--" + o.name}, o.values...), nil
 }
 
-func (o paramOption) ToConfig() (string, error) {
+func (o paramOption) ToLines() (string, error) {
 	return o.name + " " + strings.Join(o.values, " "), nil
 }
 
-func FromConfig(content string) (paramOption, error) {
+func FromLine(content string) (paramOption, error) {
 	// need simple state machine here
 	var parts []string
 	inQuotes := false

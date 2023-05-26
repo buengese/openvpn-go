@@ -44,8 +44,6 @@ func connectE(ctx context.Context, cfgpath string) error {
 			Err(err).
 			Msg("failed to load config")
 	}
-	// temporary workaround
-	conf.SetParam("key", "PrivateKey.key")
 	// ser user password
 	if username != "" && password != "" {
 		conf.SetAuth(username, password, false)
