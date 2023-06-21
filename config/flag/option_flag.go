@@ -18,10 +18,6 @@ func (o flagOption) Value() string {
 	return ""
 }
 
-func (o flagOption) ToCli() ([]string, error) {
-	return []string{"--" + o.name}, nil
-}
-
 func (o flagOption) ToLines() (string, error) {
 	return o.name, nil
 }

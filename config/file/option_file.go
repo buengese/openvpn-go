@@ -62,24 +62,6 @@ func (o fileOption) tempFile() (string, error) {
 	return file.Name(), nil
 }
 
-func (o fileOption) ToCli() ([]string, error) {
-	filePath := o.filePath
-	var err error
-	if o.filePath != "" {
-		err = o.Save()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		filePath, err = o.tempFile()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return []string{"--" + o.name, filePath}, err
-}
-
 func (o fileOption) ToLines() (string, error) {
 	escaped, err := escapeXml(o.content)
 	if err != nil {

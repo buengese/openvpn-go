@@ -33,9 +33,6 @@ func New(ctx context.Context, openvpnBinary string, config *config.Config, useMa
 	ctx = log.Ctx(ctx).With().Str("component", "openvpn").Logger().WithContext(ctx)
 	cmd := shell.NewCommand(ctx, openvpnBinary)
 	cmd.LogOutput(true)
-	if config.IsFile() {
-		cmd.SetWorkdir(config.Dir())
-	}
 
 	p := &Process{
 		ctx:    ctx,
@@ -71,6 +68,7 @@ func (p *Process) startWithManagement() error {
 		return errors.Wrap(err, "could not create cli arguments")
 	}
 	p.cmd.AddArgs(arguments...)
+	p.cmd.SetWorkdir(p.config.Dir())
 
 	err = p.cmd.Start()
 	if err != nil {

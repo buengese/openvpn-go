@@ -4,7 +4,7 @@ package config
 
 import (
 	"bufio"
-	"errors"
+	"fmt"
 	"os"
 	"path"
 	"regexp"
@@ -15,6 +15,7 @@ import (
 	"github.com/buengese/openvpn-go/config/file"
 	"github.com/buengese/openvpn-go/config/flag"
 	"github.com/buengese/openvpn-go/config/param"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -33,16 +34,13 @@ type ConfigOption interface {
 	Name() string
 	Value() string
 	ToLines() (string, error)
-	ToCli() ([]string, error)
 }
 
 // Config is a representation of a OpenVPN configuration.
 type Config struct {
-	Options    []ConfigOption
-	Auth       *auth.AuthOption
-	isFile     bool
-	isModified bool
-	path       string
+	Options []ConfigOption
+	Auth    *auth.AuthOption
+	path    string
 }
 
 // NewConfig creates a new Config object.
@@ -55,7 +53,6 @@ func NewConfig() *Config {
 // FromFile parses a OpenVPN configuration file and returns a Config object.
 func FromFile(filePath string) (*Config, error) {
 	c := NewConfig()
-	c.isFile = true
 	c.path = filePath
 
 	return c, c.read()
@@ -158,7 +155,13 @@ func (c *Config) ToString() (string, error) {
 // Save serializes the Config object and writes it to a file in the OpenVPN configuration format at the given path.
 // It also sets the path of the Config object to the given path.
 func (c *Config) Save(filePath string) error {
-	file, err := os.Create(filePath)
+	if filePath != "" {
+		c.path = filePath
+	}
+	if c.path == "" && filePath == "" {
+		c.path = path.Join(os.TempDir(), fmt.Sprintf("vpn-%d.conf", os.Getpid()))
+	}
+	file, err := os.Create(c.path)
 	if err != nil {
 		return err
 	}
@@ -174,30 +177,20 @@ func (c *Config) Save(filePath string) error {
 			return err
 		}
 	}
-	c.path = filePath
-	c.isModified = false
 	return nil
 }
 
-// ToCli generates the appropriate command line arguments for the OpenVPN binary.
-// If the configuration the current configuration has been written to or loaded from a file,
-// it uses the --config flag and the path to the file as argument.
-// Otherwise it will return all options and flags as command line arguments.
+// ToCli writes the Config to a file and returns the arguments to pass to OpenVPN.
+// If no file path is set, the Config is written to a temporary file and must be deleted manually.
 func (c *Config) ToCli() ([]string, error) {
 	arguments := make([]string, 0)
 
-	if c.isFile && !c.isModified {
-		arguments = append(arguments, "--config", c.path)
-		return arguments, nil
+	err := c.Save("")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to write config")
 	}
-	for _, item := range c.Options {
-		optionValues, err := item.ToCli()
-		if err != nil {
-			return nil, err
-		}
+	arguments = append(arguments, "--config", c.path)
 
-		arguments = append(arguments, optionValues...)
-	}
 	if c.Auth != nil && c.Auth.AllowFile {
 		authValues, err := c.Auth.ToCli()
 		if err != nil {
@@ -209,14 +202,13 @@ func (c *Config) ToCli() ([]string, error) {
 	return arguments, nil
 }
 
-// IsFile returns true if the Config object has been loaded from or written to a file.
-func (c *Config) IsFile() bool {
-	return c.isFile
-}
-
 // Dir returns the directory of the file the Config object has been loaded from or written to.
 func (c *Config) Dir() string {
 	return path.Dir(c.path)
+}
+
+func (c *Config) Path() string {
+	return c.path
 }
 
 func (c *Config) addOptions(options ...ConfigOption) {
@@ -225,7 +217,6 @@ func (c *Config) addOptions(options ...ConfigOption) {
 
 // AddOptions adds one or more ConfigOption to the Config object.
 func (c *Config) AddOptions(options ...ConfigOption) {
-	c.isModified = true
 	c.addOptions(options...)
 }
 

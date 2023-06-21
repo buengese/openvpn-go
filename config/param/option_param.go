@@ -28,10 +28,6 @@ func (o paramOption) Value() string {
 	return strings.Join(o.values, " ")
 }
 
-func (o paramOption) ToCli() ([]string, error) {
-	return append([]string{"--" + o.name}, o.values...), nil
-}
-
 func (o paramOption) ToLines() (string, error) {
 	return o.name + " " + strings.Join(o.values, " "), nil
 }

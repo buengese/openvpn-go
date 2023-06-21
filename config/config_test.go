@@ -3,7 +3,6 @@
 package config_test
 
 import (
-	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -88,29 +87,6 @@ var (
 		param.OptionParam("key-direction", "1"),
 		file.OptionFile("tls-auth", "", tlsKey),
 	}
-
-	complexCli = []string{
-		"--client",
-		"--dev", "tun0",
-		"--proto", "udp",
-		"--nobind",
-		"--ns-cert-type", "server",
-		"--persist-key",
-		"--persist-tun",
-		"--reneg-sec", "0",
-		"--dhcp-option", "DNS", "8.8.8.8",
-		"--dhcp-option", "DNS", "8.8.4.4",
-		"--redirect-gateway",
-		"--verb", "5",
-		"--auth-user-pass",
-		"--ca", "testdata/CACertificate.crt",
-		"--cert", "testdata/UserCertificate.crt",
-		"--remote", "fr.lazerpenguin.com", "443",
-		"--cipher", "AES-256-GCM",
-		"--auth", "SHA256",
-		"--keysize", "256",
-		"--route-nopull",
-	}
 )
 
 func TestFromFile(t *testing.T) {
@@ -150,8 +126,7 @@ func TestToCli(t *testing.T) {
 
 	opts, err := cfg.ToCli()
 	require.NoError(t, err)
-
-	fmt.Printf("%+v", opts)
+	assert.Contains(t, opts, "--config")
 }
 
 func TestToCliComplex(t *testing.T) {
@@ -161,7 +136,7 @@ func TestToCliComplex(t *testing.T) {
 
 	opts, err := cfg.ToCli()
 	require.NoError(t, err)
-	assert.ElementsMatch(t, complexCli, opts)
+	assert.Contains(t, opts, "--config")
 }
 
 func TestModify(t *testing.T) {
