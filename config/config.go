@@ -325,7 +325,16 @@ func (c *Config) GetProto() NetProtocol {
 	if proto == nil {
 		return TCP
 	}
-	return NetProtocol(proto.Value())
+	s := strings.TrimSpace(proto.Value())
+	s = strings.ToLower(s)
+	switch s {
+	case "tcp", "tcp4", "tcp6":
+		return TCP
+	case "udp", "udp4", "udp6":
+		return UDP
+	default:
+		return TCP
+	}
 }
 
 func (c *Config) GetRemote() (string, int) {
