@@ -18,6 +18,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+type NetProtocol string
+
+const (
+	TCP NetProtocol = "tcp"
+	UDP NetProtocol = "udp"
+)
+
 var (
 	ErrCannotReadFile = errors.New("cannot read file")
 
@@ -220,32 +227,6 @@ func (c *Config) AddOptions(options ...ConfigOption) {
 	c.addOptions(options...)
 }
 
-func (c *Config) GetOption(name string) ConfigOption {
-	for _, option := range c.Options {
-		if option.Name() == name {
-			return option
-		}
-	}
-	return nil
-}
-
-func (c *Config) RemoveOption(name string) bool {
-	index := -1
-	for idx, option := range c.Options {
-		if option.Name() == name {
-			index = idx
-			break
-		}
-	}
-	if index == -1 {
-		return false
-	}
-
-	c.Options[index] = c.Options[len(c.Options)-1]
-	c.Options = c.Options[:len(c.Options)-1]
-	return true
-}
-
 // SetParam sets the value of a parameter.
 func (c *Config) AddParam(name string, values ...string) {
 	c.AddOptions(param.OptionParam(name, values...))
@@ -270,6 +251,10 @@ func (c *Config) SetAuth(username, password string, allowFile bool) {
 func (c *Config) SetManagementAddress(ip string, port int) {
 	c.AddParam("management", ip, strconv.Itoa(port))
 	c.AddFlag("management-client")
+}
+
+func (c *Config) SetProto(proto NetProtocol) {
+	c.AddParam("proto", string(proto))
 }
 
 // SetPort sets the port of the OpenVPN server.
@@ -324,4 +309,54 @@ func (c *Config) SetTLSCrypt(cryptFile string) error {
 	}
 	c.AddOptions(f)
 	return nil
+}
+
+func (c *Config) GetOption(name string) ConfigOption {
+	for _, option := range c.Options {
+		if option.Name() == name {
+			return option
+		}
+	}
+	return nil
+}
+
+func (c *Config) GetProto() NetProtocol {
+	proto := c.GetOption("proto")
+	if proto == nil {
+		return TCP
+	}
+	return NetProtocol(proto.Value())
+}
+
+func (c *Config) GetRemote() (string, int) {
+	remote := c.GetOption("remote")
+	if remote == nil {
+		return "", 0
+	}
+	parts := strings.Split(remote.Value(), " ")
+	if len(parts) < 2 {
+		return "", 0
+	}
+	port, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return "", 0
+	}
+	return parts[0], port
+}
+
+func (c *Config) RemoveOption(name string) bool {
+	index := -1
+	for idx, option := range c.Options {
+		if option.Name() == name {
+			index = idx
+			break
+		}
+	}
+	if index == -1 {
+		return false
+	}
+
+	c.Options[index] = c.Options[len(c.Options)-1]
+	c.Options = c.Options[:len(c.Options)-1]
+	return true
 }

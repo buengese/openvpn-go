@@ -182,3 +182,13 @@ func TestFileRoundTrip(t *testing.T) {
 
 	assert.Equal(t, original, roundtrip)
 }
+
+func TestGetters(t *testing.T) {
+	cfg := config.NewConfig()
+	cfg.AddOptions(options...)
+
+	assert.Equal(t, config.TCP, cfg.GetProto())
+	host, port := cfg.GetRemote()
+	assert.Equal(t, "vpn.example.com", host)
+	assert.Equal(t, 1443, port)
+}
