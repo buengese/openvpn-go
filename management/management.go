@@ -18,6 +18,6 @@ type CommandWriter interface {
 // consumes events from channel - avoid long running operations at all costs
 type Middleware interface {
 	Start(CommandWriter) error
-	Stop(CommandWriter) error
+	Stop(CommandWriter)
 	ProcessEvent(line string) (consumed bool, err error)
 }

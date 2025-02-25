@@ -4,15 +4,12 @@ package process
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/buengese/openvpn-go/config"
 	"github.com/buengese/openvpn-go/internal/shell"
 	"github.com/buengese/openvpn-go/management"
 	"github.com/buengese/openvpn-go/middlewares/client/auth"
 	"github.com/rs/zerolog/log"
-
-	"sync"
 
 	"github.com/pkg/errors"
 )
@@ -122,6 +119,13 @@ func (p *Process) Wait() error {
 
 // Stop stops the openvpn process
 func (p *Process) Stop() {
+	p.Management.Stop()
+
+	p.cmd.Stop()
+}
+
+/*
+func (p *Process) Stop() {
 	waiter := sync.WaitGroup{}
 	waiter.Add(1)
 	go func() {
@@ -138,3 +142,4 @@ func (p *Process) Stop() {
 	}()
 	waiter.Wait()
 }
+*/

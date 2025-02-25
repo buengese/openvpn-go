@@ -21,10 +21,19 @@ const stateOutputMatcher = "^\\d+,([a-zA-Z_]+),.*$"
 
 var rule = regexp.MustCompile(stateOutputMatcher)
 
+var (
+	ErrWaitTimeout = errors.New("timeout waiting for state")
+
+	ErrAuthFailure = errors.New("authentication failure")
+
+	ErrProcessExiting = errors.New("openvpn process exiting")
+)
+
 type middleware struct {
-	listeners []Callback
-	state     process.State
-	mutex     sync.RWMutex
+	listeners  []Callback
+	state      process.State
+	lastDetail string
+	mutex      sync.RWMutex
 }
 
 // NewMiddleware creates state middleware for given list of callback listeners
@@ -53,10 +62,8 @@ func (m *middleware) Start(commandWriter management.CommandWriter) error {
 	return nil
 }
 
-func (m *middleware) Stop(commandWriter management.CommandWriter) error {
+func (m *middleware) Stop(commandWriter management.CommandWriter) {
 	m.callListeners(process.ProcessExited)
-	_, err := commandWriter.SingleLineCommand("state off")
-	return err
 }
 
 func (m *middleware) ProcessEvent(line string) (bool, error) {
@@ -64,16 +71,22 @@ func (m *middleware) ProcessEvent(line string) (bool, error) {
 	if trimmedLine == line {
 		return false, nil
 	}
-
-	state, err := extractOpenvpnState(trimmedLine)
-	if err != nil {
-		return true, err
+	// Split the line by comma. The expected format is:
+	// timestamp,STATE,detail, ...
+	parts := strings.Split(trimmedLine, ",")
+	if len(parts) < 2 {
+		return true, errors.New("invalid state line: " + line)
 	}
-
+	newState := process.State(parts[1])
+	var detail string
+	if len(parts) > 2 {
+		detail = parts[2]
+	}
 	m.mutex.Lock()
-	m.state = state
+	m.state = newState
+	m.lastDetail = detail
 	m.mutex.Unlock()
-	m.callListeners(state)
+	m.callListeners(newState)
 	return true, nil
 }
 
@@ -92,7 +105,7 @@ func (m *middleware) WaitForState(state process.State, timeout time.Duration) er
 	tickerDuration := 100 * time.Millisecond
 	for {
 		if time.Since(startTime) >= timeout {
-			return errors.New("timeout waiting for state")
+			return ErrWaitTimeout
 		}
 		m.mutex.RLock()
 		if m.state == state {
@@ -101,6 +114,33 @@ func (m *middleware) WaitForState(state process.State, timeout time.Duration) er
 		}
 		m.mutex.RUnlock()
 		time.Sleep(tickerDuration)
+	}
+}
+
+func (m *middleware) WaitForConnected(timeout time.Duration) error {
+	startTime := time.Now()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		if time.Since(startTime) >= timeout {
+			return ErrWaitTimeout
+		}
+		m.mutex.RLock()
+		currentState := m.state
+		currentDetail := m.lastDetail
+		m.mutex.RUnlock()
+
+		switch currentState {
+		case process.ConnectedState:
+			return nil
+		case process.ExitingState:
+			if currentDetail == "auth-failure" {
+				return ErrAuthFailure
+			}
+			return ErrProcessExiting
+		}
+		<-ticker.C
 	}
 }
 

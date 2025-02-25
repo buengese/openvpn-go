@@ -66,11 +66,11 @@ func connectE(ctx context.Context, cfgpath string) error {
 		}
 	}()
 
-	err = statemw.WaitForState(process.ConnectedState, 5*time.Second)
+	err = statemw.WaitForConnected(5 * time.Second)
 	if err != nil {
 		logging.GetLogger().Fatal().
 			Err(err).
-			Msg("connection wait timed out")
+			Msg("connection failed")
 	}
 
 	// Wait for a termination signal

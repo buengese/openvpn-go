@@ -188,12 +188,7 @@ func (m *Management) startMiddlewares(connection CommandWriter) error {
 
 func (m *Management) stopMiddlewares(connection CommandWriter) {
 	for _, middleware := range m.middlewares {
-		err := middleware.Stop(connection)
-		if err != nil {
-			log.Ctx(m.ctx).Error().
-				Err(err).
-				Msg("failed to stop middleware")
-		}
+		middleware.Stop(connection)
 	}
 }
 

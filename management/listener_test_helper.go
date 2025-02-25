@@ -23,11 +23,10 @@ func (m *mockMiddleware) Start(cmdWriter CommandWriter) error {
 	return nil
 }
 
-func (m *mockMiddleware) Stop(cmdWriter CommandWriter) error {
+func (m *mockMiddleware) Stop(cmdWriter CommandWriter) {
 	if m.OnStop != nil {
-		return m.OnStop(cmdWriter)
+		m.OnStop(cmdWriter)
 	}
-	return nil
 }
 
 func (m *mockMiddleware) ProcessEvent(event string) (consumed bool, err error) {
