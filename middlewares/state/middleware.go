@@ -133,7 +133,9 @@ func (m *middleware) WaitForConnected(timeout time.Duration) error {
 
 		switch currentState {
 		case process.ConnectedState:
-			return nil
+			if currentDetail == "auth-failure" {
+				return ErrAuthFailure
+			}
 		case process.ExitingState:
 			if currentDetail == "auth-failure" {
 				return ErrAuthFailure
