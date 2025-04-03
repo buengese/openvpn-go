@@ -26,6 +26,8 @@ var (
 
 	ErrAuthFailure = errors.New("authentication failure")
 
+	ErrRemoteDisconnect = errors.New("remote disconnect")
+
 	ErrProcessExiting = errors.New("openvpn process exiting")
 )
 
@@ -132,13 +134,12 @@ func (m *middleware) WaitForConnected(timeout time.Duration) error {
 		m.mutex.RUnlock()
 
 		switch currentState {
-		case process.ConnectedState:
-			if currentDetail == "auth-failure" {
-				return ErrAuthFailure
-			}
 		case process.ExitingState:
 			if currentDetail == "auth-failure" {
 				return ErrAuthFailure
+			}
+			if currentDetail == "exit-with-notification" {
+				return ErrRemoteDisconnect
 			}
 			return ErrProcessExiting
 		}
