@@ -134,6 +134,8 @@ func (m *middleware) WaitForConnected(timeout time.Duration) error {
 		m.mutex.RUnlock()
 
 		switch currentState {
+		case process.ConnectedState:
+			return nil
 		case process.ExitingState:
 			if currentDetail == "auth-failure" {
 				return ErrAuthFailure
