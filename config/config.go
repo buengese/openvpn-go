@@ -339,11 +339,14 @@ func (c *Config) GetProto() NetProtocol {
 
 func (c *Config) GetRemote() (string, int) {
 	remote := c.GetOption("remote")
-	if remote == nil {
+	if remote == nil || len(remote.Value()) == 0 {
 		return "", 0
 	}
 	parts := strings.Split(remote.Value(), " ")
-	if len(parts) < 2 {
+	if len(parts) == 1 {
+		return remote.Value(), 0
+	}
+	if len(parts) > 2 {
 		return "", 0
 	}
 	port, err := strconv.Atoi(parts[1])
