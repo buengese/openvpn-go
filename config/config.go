@@ -4,6 +4,7 @@ package config
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"path"
@@ -41,6 +42,28 @@ var (
 	XMLCloseTag = regexp.MustCompile("</([a-zA-Z0-9-_]+)>")
 )
 
+// ParseOption represents a functional option for parsing configuration.
+type ParseOption func(*parseOptions)
+
+// parseOptions holds all parsing configuration options.
+type parseOptions struct {
+	LoadFileOptions bool // Controls if file options load content from referenced paths
+}
+
+// defaultParseOptions returns the default parsing options.
+func defaultParseOptions() *parseOptions {
+	return &parseOptions{
+		LoadFileOptions: false, // Default to false, will be overridden per method
+	}
+}
+
+// WithLoadFileOptions controls whether file options load content from referenced paths.
+func WithLoadFileOptions(load bool) ParseOption {
+	return func(opts *parseOptions) {
+		opts.LoadFileOptions = load
+	}
+}
+
 // ConfigOption is an interface for all configuration options.
 type ConfigOption interface {
 	Name() string
@@ -50,30 +73,58 @@ type ConfigOption interface {
 
 // Config is a representation of a OpenVPN configuration.
 type Config struct {
-	Options []ConfigOption
-	Auth    *auth.AuthOption
-	path    string
+	Options      []ConfigOption
+	Auth         *auth.AuthOption
+	path         string
+	parseOptions *parseOptions
 }
 
 // NewConfig creates a new Config object.
 func NewConfig() *Config {
 	return &Config{
-		Options: []ConfigOption{},
+		Options:      []ConfigOption{},
+		parseOptions: defaultParseOptions(),
 	}
 }
 
 // FromFile parses a OpenVPN configuration file and returns a Config object.
-func FromFile(filePath string) (*Config, error) {
+func FromFile(filePath string, opts ...ParseOption) (*Config, error) {
+	options := defaultParseOptions()
+	options.LoadFileOptions = true // Default to true for FromFile
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	c := NewConfig()
 	c.path = filePath
+	c.parseOptions = options
 
 	return c, c.read()
 }
 
 // FromString parses a OpenVPN configuration string and returns a Config object.
-func FromString(config string) (*Config, error) {
+func FromString(config string, opts ...ParseOption) (*Config, error) {
+	options := defaultParseOptions()
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	scanner := bufio.NewScanner(strings.NewReader(config))
 	c := NewConfig()
+	c.parseOptions = options
+	return c, c.scanConfig(scanner)
+}
+
+// FromByteSlice parses a OpenVPN configuration byte slice and returns a Config object.
+func FromByteSlice(data []byte, opts ...ParseOption) (*Config, error) {
+	options := defaultParseOptions()
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	c := NewConfig()
+	c.parseOptions = options
 	return c, c.scanConfig(scanner)
 }
 
@@ -129,7 +180,7 @@ func (c *Config) scanConfig(scanner *bufio.Scanner) error {
 		// load file
 		if isFileOption(line) {
 			parts := strings.SplitN(line, " ", 2)
-			option, err := file.FromPath(parts[0], path.Join(c.Dir(), parts[1]), true)
+			option, err := file.FromPath(parts[0], path.Join(c.Dir(), parts[1]), c.parseOptions.LoadFileOptions)
 			if err != nil {
 				return err
 			}
