@@ -20,6 +20,11 @@ import (
 
 type NetProtocol string
 
+type Endpoint struct {
+	Host string
+	Port int
+}
+
 const (
 	TCP NetProtocol = "tcp"
 	UDP NetProtocol = "udp"
@@ -311,6 +316,7 @@ func (c *Config) SetTLSCrypt(cryptFile string) error {
 	return nil
 }
 
+// GetOption returns the first ConfigOption with the given name.
 func (c *Config) GetOption(name string) ConfigOption {
 	for _, option := range c.Options {
 		if option.Name() == name {
@@ -318,6 +324,17 @@ func (c *Config) GetOption(name string) ConfigOption {
 		}
 	}
 	return nil
+}
+
+// GetOptions returns all ConfigOptions with the given name.
+func (c *Config) GetOptions(name string) []ConfigOption {
+	options := make([]ConfigOption, 0)
+	for _, option := range c.Options {
+		if option.Name() == name {
+			options = append(options, option)
+		}
+	}
+	return options
 }
 
 func (c *Config) GetProto() NetProtocol {
@@ -335,6 +352,18 @@ func (c *Config) GetProto() NetProtocol {
 	default:
 		return TCP
 	}
+}
+
+func (c *Config) GetPort() int {
+	port := c.GetOption("port")
+	if port == nil || len(port.Value()) == 0 {
+		return 0
+	}
+	p, err := strconv.Atoi(port.Value())
+	if err != nil {
+		return 0
+	}
+	return p
 }
 
 func (c *Config) GetRemote() (string, int) {
@@ -356,6 +385,33 @@ func (c *Config) GetRemote() (string, int) {
 	return parts[0], port
 }
 
+// GetEndpoints returns all remote endpoints defined in the configuration.
+func (c *Config) GetEndpoints() []Endpoint {
+	var (
+		remoteOptions = c.GetOptions("remote")
+		endpoints     = make([]Endpoint, 0, len(remoteOptions))
+		port          = c.GetPort()
+	)
+
+	for _, remote := range remoteOptions {
+		parts := strings.Split(remote.Value(), " ")
+		if len(parts) == 1 {
+			endpoints = append(endpoints, Endpoint{Host: parts[0], Port: port})
+			continue
+		}
+		if len(parts) > 2 {
+			continue // invalid remote option
+		}
+		port, err := strconv.Atoi(parts[1])
+		if err != nil {
+			continue // invalid port
+		}
+		endpoints = append(endpoints, Endpoint{Host: parts[0], Port: port})
+	}
+	return endpoints
+}
+
+// RemoveOption removes the first ConfigOption with the given name from the Config object.
 func (c *Config) RemoveOption(name string) bool {
 	index := -1
 	for idx, option := range c.Options {

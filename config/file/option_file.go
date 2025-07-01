@@ -52,16 +52,6 @@ func (o fileOption) Save() error {
 	return ioutil.WriteFile(o.filePath, []byte(o.content), 0600)
 }
 
-func (o fileOption) tempFile() (string, error) {
-	file, err := ioutil.TempFile("", "ovpn-")
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-	file.Write([]byte(o.content))
-	return file.Name(), nil
-}
-
 func (o fileOption) ToLines() (string, error) {
 	escaped, err := escapeXml(o.content)
 	if err != nil {
