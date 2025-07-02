@@ -22,8 +22,9 @@ import (
 type NetProtocol string
 
 type Endpoint struct {
-	Host string
-	Port int
+	Host  string
+	Port  int
+	Proto NetProtocol
 }
 
 const (
@@ -436,28 +437,51 @@ func (c *Config) GetRemote() (string, int) {
 	return parts[0], port
 }
 
+func clientProto(clientProto string) NetProtocol {
+	switch strings.ToLower(clientProto) {
+	case "tcp-client", "tcp4-client", "tcp6-client":
+		return TCP
+	case "udp-client", "udp4-client", "udp6-client":
+		return UDP
+	default:
+		return TCP // Default to TCP if unknown
+	}
+}
+
 // GetEndpoints returns all remote endpoints defined in the configuration.
+// Parses remote <host> [<port> [<proto>]]
 func (c *Config) GetEndpoints() []Endpoint {
 	var (
 		remoteOptions = c.GetOptions("remote")
 		endpoints     = make([]Endpoint, 0, len(remoteOptions))
 		port          = c.GetPort()
+		proto         = c.GetProto()
 	)
 
 	for _, remote := range remoteOptions {
 		parts := strings.Split(remote.Value(), " ")
+		// Most common case: remote <host>
 		if len(parts) == 1 {
-			endpoints = append(endpoints, Endpoint{Host: parts[0], Port: port})
+			endpoints = append(endpoints, Endpoint{Host: parts[0], Port: port, Proto: proto})
 			continue
 		}
-		if len(parts) > 2 {
+		if len(parts) > 3 {
 			continue // invalid remote option
 		}
+
 		port, err := strconv.Atoi(parts[1])
 		if err != nil {
 			continue // invalid port
 		}
-		endpoints = append(endpoints, Endpoint{Host: parts[0], Port: port})
+
+		// Less common case: remote <host> <port>
+		if len(parts) == 2 {
+			endpoints = append(endpoints, Endpoint{Host: parts[0], Port: port, Proto: proto})
+			continue
+		}
+
+		// Least common case: remote <host> <port> <proto>
+		endpoints = append(endpoints, Endpoint{Host: parts[0], Port: port, Proto: clientProto(parts[2])})
 	}
 	return endpoints
 }
