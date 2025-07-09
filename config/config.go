@@ -420,6 +420,28 @@ func (c *Config) GetTLSCrypt() (file_option.FileOption, error) {
 	return tlsCryptOpt, nil
 }
 
+// SetTLSCrypt sets the tls-auth key for TLS authentication.
+func (c *Config) SetTLSAuth(tlsCryptOpt file_option.FileOption) {
+	c.RemoveAllOptions("tls-auth")
+	c.AddOptions(tlsCryptOpt)
+}
+
+// GetTLSCrypt returns the tls-auth key for TLS authentication.
+func (c *Config) GetTLSAuth() (file_option.FileOption, error) {
+	tlsAuthOptions := c.GetOptions("tls-auth")
+	if len(tlsAuthOptions) == 0 {
+		return file_option.FileOption{}, fmt.Errorf("no tls-auth key set")
+	}
+	if len(tlsAuthOptions) > 1 {
+		return file_option.FileOption{}, fmt.Errorf("multiple tls-auth keys set")
+	}
+	tlsCryptOpt, ok := tlsAuthOptions[0].(file_option.FileOption)
+	if !ok {
+		return file_option.FileOption{}, fmt.Errorf("tls-auth option is not a file option")
+	}
+	return tlsCryptOpt, nil
+}
+
 // GetOption returns the first ConfigOption with the given name.
 func (c *Config) GetOption(name string) ConfigOption {
 	for _, option := range c.Options {
