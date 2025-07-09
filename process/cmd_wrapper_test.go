@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestHelperProcess IS ESENTIAL FOR CMD MOCKING - DO NOT DELETE
-func TestHelperProcess(t *testing.T) {
+// TestHelperProcess IS ESSENTIAL FOR CMD MOCKING - DO NOT DELETE.
+func TestHelperProcess(_ *testing.T) {
 	RunTestExecCmd()
 }
 
@@ -31,7 +31,8 @@ func TestWaitAndStopProcessDoesNotDeadLocks(t *testing.T) {
 	go func() {
 		assert.NoError(t, process.Start())
 		processStarted.Done()
-		process.Wait()
+
+		_ = process.Wait()
 		processWaitExited <- 1
 	}()
 	processStarted.Wait()
@@ -62,7 +63,7 @@ func TestWaitReturnsIfProcessDies(t *testing.T) {
 	processWaitExited := make(chan int, 1)
 
 	go func() {
-		process.Wait()
+		_ = process.Wait()
 		processWaitExited <- 1
 	}()
 

@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os/exec"
 
@@ -80,23 +81,28 @@ func (c *Command) Start() error {
 	if c.workdir != "" {
 		c.cmd.Dir = c.workdir
 	}
+
 	if c.logOutput {
 		stdout, err := c.cmd.StdoutPipe()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get stdout pipe: %w", err)
 		}
+
 		stderr, err := c.cmd.StderrPipe()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get stderr pipe: %w", err)
 		}
+
 		go c.outputToLog(stdout, "stdout")
+
 		go c.outputToLog(stderr, "stderr")
 	}
 
 	err := c.cmd.Start()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to start command: %w", err)
 	}
+
 	go c.waitForExit()
 
 	return nil
@@ -132,10 +138,11 @@ func (c *Command) Stop() {
 func (c *Command) outputToLog(output io.ReadCloser, prefix string) {
 	scanner := bufio.NewScanner(output)
 	logger := log.Ctx(c.ctx).With().Str("channel", prefix).Logger()
+
 	for scanner.Scan() {
 		logger.Trace().Msg(scanner.Text())
-
 	}
+
 	if err := scanner.Err(); err != nil {
 		logger.Error().Err(err).Msg("failed to read")
 	}

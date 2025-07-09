@@ -22,6 +22,9 @@ var (
 	password string
 )
 
+// Default timeout for establishing VPN connection.
+const defaultConnectionTimeout = 5 * time.Second
+
 var Command = &cobra.Command{
 	Use:          "connect <config-file>",
 	Short:        `connect`,
@@ -48,9 +51,11 @@ func connectE(ctx context.Context, cfgpath string) error {
 	if username != "" && password != "" {
 		conf.SetAuth(username, password, false)
 	}
+
 	proc := process.New(ctx, "openvpn", conf, true)
 	statemw := state.NewMiddleware()
 	proc.Management.AddMiddleware(statemw)
+
 	err = proc.Start()
 	if err != nil {
 		logging.GetLogger().Fatal().
@@ -66,7 +71,7 @@ func connectE(ctx context.Context, cfgpath string) error {
 		}
 	}()
 
-	err = statemw.WaitForConnected(5 * time.Second)
+	err = statemw.WaitForConnected(defaultConnectionTimeout)
 	if err != nil {
 		logging.GetLogger().Fatal().
 			Err(err).
@@ -79,5 +84,6 @@ func connectE(ctx context.Context, cfgpath string) error {
 	<-quit
 
 	proc.Stop()
+
 	return nil
 }

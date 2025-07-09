@@ -16,6 +16,7 @@ func TestConsumeLineSkips(t *testing.T) {
 		{">ANOTHER_LINE_DELIVERED"},
 		{">PASSWORD"},
 	}
+
 	middleware := NewMiddleware(auth.OptionAuth("testuser", "testpassword", false))
 
 	for _, test := range tests {
@@ -30,7 +31,7 @@ func TestConsumeLineTakes(t *testing.T) {
 
 	middleware := NewMiddleware(auth.OptionAuth("testuser", "testpassword", false))
 	mockCmdWriter := &management.MockConnection{}
-	middleware.Start(mockCmdWriter)
+	_ = middleware.Start(mockCmdWriter) // Error intentionally ignored in test
 
 	consumed, err := middleware.ProcessEvent(passwordRequest)
 	assert.NoError(t, err)

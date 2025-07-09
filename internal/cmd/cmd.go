@@ -24,11 +24,13 @@ func CheckArgs(minArgs, maxArgs int, cmd *cobra.Command, args []string) {
 		_ = cmd.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, "Command %s needs %d arguments minimum: you provided %d non flag arguments: %q\n",
 			cmd.Name(), minArgs, len(args), args)
+
 		HandleErr(ErrNotEnoughArguments)
 	} else if len(args) > maxArgs {
 		_ = cmd.Usage()
 		_, _ = fmt.Fprintf(os.Stderr, "Command %s needs %d arguments maximum: you provided %d non flag arguments: %q\n",
 			cmd.Name(), maxArgs, len(args), args)
+
 		HandleErr(ErrTooManyArguments)
 	}
 }
@@ -38,5 +40,6 @@ func HandleErr(err error) {
 	if err == nil {
 		os.Exit(0)
 	}
+
 	os.Exit(1)
 }

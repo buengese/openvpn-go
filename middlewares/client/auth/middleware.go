@@ -2,48 +2,51 @@
 package auth
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/buengese/openvpn-go/config/auth"
 	"github.com/buengese/openvpn-go/management"
 )
 
-type middleware struct {
+// Middleware represents the auth middleware.
+type Middleware struct {
 	commandWriter management.CommandWriter
-	auth          *auth.AuthOption
+	auth          *auth.Option
 }
 
 var rule = regexp.MustCompile("^>PASSWORD:Need 'Auth' username/password$")
 
-// NewMiddleware creates client user_auth challenge authentication middleware
-func NewMiddleware(auth *auth.AuthOption) *middleware {
-	return &middleware{
+// NewMiddleware creates client user_auth challenge authentication middleware.
+func NewMiddleware(auth *auth.Option) *Middleware {
+	return &Middleware{
 		commandWriter: nil,
 		auth:          auth,
 	}
 }
 
-func (m *middleware) Start(commandWriter management.CommandWriter) error {
+func (m *Middleware) Start(commandWriter management.CommandWriter) error {
 	m.commandWriter = commandWriter
 	return nil
 }
 
-func (m *middleware) Stop(connection management.CommandWriter) {}
+func (m *Middleware) Stop(_ management.CommandWriter) {}
 
-func (m *middleware) ProcessEvent(line string) (consumed bool, err error) {
+func (m *Middleware) ProcessEvent(line string) (bool, error) {
 	match := rule.FindStringSubmatch(line)
 	if len(match) == 0 {
 		return false, nil
 	}
 
-	_, err = m.commandWriter.SingleLineCommand("password 'Auth' %s", m.auth.Password)
+	_, err := m.commandWriter.SingleLineCommand("password 'Auth' %s", m.auth.Password)
 	if err != nil {
-		return true, err
+		return true, fmt.Errorf("failed to send password command: %w", err)
 	}
 
 	_, err = m.commandWriter.SingleLineCommand("username 'Auth' %s", m.auth.Username)
 	if err != nil {
-		return true, err
+		return true, fmt.Errorf("failed to send username command: %w", err)
 	}
+
 	return true, nil
 }

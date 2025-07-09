@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/buengese/openvpn-go/config"
-	"github.com/buengese/openvpn-go/config/file_option"
-	"github.com/buengese/openvpn-go/config/flag_option"
-	"github.com/buengese/openvpn-go/config/param_option"
+	"github.com/buengese/openvpn-go/config/fileoption"
+	"github.com/buengese/openvpn-go/config/flagoption"
+	"github.com/buengese/openvpn-go/config/paramoption"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -69,23 +69,23 @@ b260f4b45dec3285875589c97d3087c9
 )
 
 var (
-	options = []config.ConfigOption{
-		flag_option.New("client"),
-		param_option.New("dev", "tun"),
-		param_option.New("remote", "vpn.example.com", "1443"),
-		flag_option.New("nobind"),
-		flag_option.New("auth-user-pass"),
-		param_option.New("tun-mtu", "1500"),
-		flag_option.New("persist-tun"),
-		param_option.New("remote-cert-tls", "server"),
-		param_option.New("verb", "3"),
-		param_option.New("cipher", "AES-256-CBC"),
-		param_option.New("auth", "SHA512"),
-		param_option.New("pull-filter", "ignore", "\"redirect-gateway ipv6\""),
+	options = []config.Option{
+		flagoption.New("client"),
+		paramoption.New("dev", "tun"),
+		paramoption.New("remote", "vpn.example.com", "1443"),
+		flagoption.New("nobind"),
+		flagoption.New("auth-user-pass"),
+		paramoption.New("tun-mtu", "1500"),
+		flagoption.New("persist-tun"),
+		paramoption.New("remote-cert-tls", "server"),
+		paramoption.New("verb", "3"),
+		paramoption.New("cipher", "AES-256-CBC"),
+		paramoption.New("auth", "SHA512"),
+		paramoption.New("pull-filter", "ignore", "\"redirect-gateway ipv6\""),
 
-		file_option.New("ca", caCert),
-		param_option.New("key-direction", "1"),
-		file_option.New("tls-auth", tlsKey),
+		fileoption.New("ca", caCert),
+		paramoption.New("key-direction", "1"),
+		fileoption.New("tls-auth", tlsKey),
 	}
 )
 
@@ -146,7 +146,7 @@ func TestModify(t *testing.T) {
 	assert.True(t, cfg.RemoveOption("verb"))
 	cfg.AddParam("verb", "3")
 
-	assert.Equal(t, param_option.New("verb", "3"), cfg.GetOption("verb"))
+	assert.Equal(t, paramoption.New("verb", "3"), cfg.GetOption("verb"))
 }
 
 func TestStringRoundTrip(t *testing.T) {
@@ -233,21 +233,21 @@ func TestGetTLSCaCert(t *testing.T) {
 	assert.Contains(t, err.Error(), "no CA certificate set")
 
 	// Test with valid CA certificate
-	caCert := file_option.New("ca", caCert)
+	caCert := fileoption.New("ca", caCert)
 	cfg.AddOptions(caCert)
 	retrievedCaCert, err := cfg.GetTLSCaCert()
 	require.NoError(t, err)
 	assert.Equal(t, caCert, retrievedCaCert)
 
 	// Test multiple CA certificates (should error)
-	cfg.AddOptions(file_option.New("ca", "another-cert"))
+	cfg.AddOptions(fileoption.New("ca", "another-cert"))
 	_, err = cfg.GetTLSCaCert()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "multiple CA certificates set")
 
 	// Test with non-file option
 	cfg2 := config.NewConfig()
-	cfg2.AddOptions(param_option.New("ca", "not-a-file"))
+	cfg2.AddOptions(paramoption.New("ca", "not-a-file"))
 	_, err = cfg2.GetTLSCaCert()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "CA option is not a file option")
@@ -262,21 +262,21 @@ func TestGetTLSClientCert(t *testing.T) {
 	assert.Contains(t, err.Error(), "no client certificate set")
 
 	// Test with valid client certificate
-	clientCert := file_option.New("cert", "client-cert-content")
+	clientCert := fileoption.New("cert", "client-cert-content")
 	cfg.AddOptions(clientCert)
 	retrievedClientCert, err := cfg.GetTLSClientCert()
 	require.NoError(t, err)
 	assert.Equal(t, clientCert, retrievedClientCert)
 
 	// Test multiple client certificates (should error)
-	cfg.AddOptions(file_option.New("cert", "another-cert"))
+	cfg.AddOptions(fileoption.New("cert", "another-cert"))
 	_, err = cfg.GetTLSClientCert()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "multiple client certificates set")
 
 	// Test with non-file option
 	cfg2 := config.NewConfig()
-	cfg2.AddOptions(param_option.New("cert", "not-a-file"))
+	cfg2.AddOptions(paramoption.New("cert", "not-a-file"))
 	_, err = cfg2.GetTLSClientCert()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "client certificate option is not a file option")
@@ -291,21 +291,21 @@ func TestGetTLSPrivateKey(t *testing.T) {
 	assert.Contains(t, err.Error(), "no client private key set")
 
 	// Test with valid private key
-	privateKey := file_option.New("key", "private-key-content")
+	privateKey := fileoption.New("key", "private-key-content")
 	cfg.AddOptions(privateKey)
 	retrievedPrivateKey, err := cfg.GetTLSPrivateKey()
 	require.NoError(t, err)
 	assert.Equal(t, privateKey, retrievedPrivateKey)
 
 	// Test multiple private keys (should error)
-	cfg.AddOptions(file_option.New("key", "another-key"))
+	cfg.AddOptions(fileoption.New("key", "another-key"))
 	_, err = cfg.GetTLSPrivateKey()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "multiple client private keys set")
 
 	// Test with non-file option
 	cfg2 := config.NewConfig()
-	cfg2.AddOptions(param_option.New("key", "not-a-file"))
+	cfg2.AddOptions(paramoption.New("key", "not-a-file"))
 	_, err = cfg2.GetTLSPrivateKey()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "client private key option is not a file option")
@@ -320,21 +320,21 @@ func TestGetTLSCrypt(t *testing.T) {
 	assert.Contains(t, err.Error(), "no tls-crypt key set")
 
 	// Test with valid tls-crypt key
-	tlsCrypt := file_option.New("tls-crypt", tlsKey)
+	tlsCrypt := fileoption.New("tls-crypt", tlsKey)
 	cfg.AddOptions(tlsCrypt)
-	retrievedTlsCrypt, err := cfg.GetTLSCrypt()
+	retrievedTLSCrypt, err := cfg.GetTLSCrypt()
 	require.NoError(t, err)
-	assert.Equal(t, tlsCrypt, retrievedTlsCrypt)
+	assert.Equal(t, tlsCrypt, retrievedTLSCrypt)
 
 	// Test multiple tls-crypt keys (should error)
-	cfg.AddOptions(file_option.New("tls-crypt", "another-key"))
+	cfg.AddOptions(fileoption.New("tls-crypt", "another-key"))
 	_, err = cfg.GetTLSCrypt()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "multiple tls-crypt keys set")
 
 	// Test with non-file option
 	cfg2 := config.NewConfig()
-	cfg2.AddOptions(param_option.New("tls-crypt", "not-a-file"))
+	cfg2.AddOptions(paramoption.New("tls-crypt", "not-a-file"))
 	_, err = cfg2.GetTLSCrypt()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "tls-crypt option is not a file option")
@@ -348,19 +348,19 @@ func TestGetPort(t *testing.T) {
 	assert.Equal(t, 0, port)
 
 	// Test with valid port
-	cfg.AddOptions(param_option.New("port", "1194"))
+	cfg.AddOptions(paramoption.New("port", "1194"))
 	port = cfg.GetPort()
 	assert.Equal(t, 1194, port)
 
 	// Test with invalid port (should return 0)
 	cfg2 := config.NewConfig()
-	cfg2.AddOptions(param_option.New("port", "invalid"))
+	cfg2.AddOptions(paramoption.New("port", "invalid"))
 	port = cfg2.GetPort()
 	assert.Equal(t, 0, port)
 
 	// Test with empty port value
 	cfg3 := config.NewConfig()
-	cfg3.AddOptions(param_option.New("port", ""))
+	cfg3.AddOptions(paramoption.New("port", ""))
 	port = cfg3.GetPort()
 	assert.Equal(t, 0, port)
 }
@@ -387,8 +387,9 @@ func TestGetProtoExtended(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.NewConfig()
 			if tt.proto != "" {
-				cfg.AddOptions(param_option.New("proto", tt.proto))
+				cfg.AddOptions(paramoption.New("proto", tt.proto))
 			}
+
 			result := cfg.GetProto()
 			assert.Equal(t, tt.expected, result)
 		})
@@ -413,8 +414,9 @@ func TestGetRemoteExtended(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.NewConfig()
 			if tt.remote != "" {
-				cfg.AddOptions(param_option.New("remote", tt.remote))
+				cfg.AddOptions(paramoption.New("remote", tt.remote))
 			}
+
 			host, port := cfg.GetRemote()
 			assert.Equal(t, tt.expectedHost, host)
 			assert.Equal(t, tt.expectedPort, port)
@@ -430,9 +432,9 @@ func TestGetEndpoints(t *testing.T) {
 	assert.Empty(t, endpoints)
 
 	// Test with single remote (host only)
-	cfg.AddOptions(param_option.New("remote", "vpn1.example.com"))
-	cfg.AddOptions(param_option.New("port", "1194"))
-	cfg.AddOptions(param_option.New("proto", "udp"))
+	cfg.AddOptions(paramoption.New("remote", "vpn1.example.com"))
+	cfg.AddOptions(paramoption.New("port", "1194"))
+	cfg.AddOptions(paramoption.New("proto", "udp"))
 	endpoints = cfg.GetEndpoints()
 	require.Len(t, endpoints, 1)
 	assert.Equal(t, "vpn1.example.com", endpoints[0].Host)
@@ -441,12 +443,12 @@ func TestGetEndpoints(t *testing.T) {
 
 	// Test with multiple remotes with different configurations
 	cfg2 := config.NewConfig()
-	cfg2.AddOptions(param_option.New("remote", "vpn1.example.com"))
-	cfg2.AddOptions(param_option.New("remote", "vpn2.example.com 443"))
-	cfg2.AddOptions(param_option.New("remote", "vpn3.example.com 1194 tcp-client"))
-	cfg2.AddOptions(param_option.New("remote", "vpn4.example.com 22 udp-client"))
-	cfg2.AddOptions(param_option.New("port", "1194"))
-	cfg2.AddOptions(param_option.New("proto", "tcp"))
+	cfg2.AddOptions(paramoption.New("remote", "vpn1.example.com"))
+	cfg2.AddOptions(paramoption.New("remote", "vpn2.example.com 443"))
+	cfg2.AddOptions(paramoption.New("remote", "vpn3.example.com 1194 tcp-client"))
+	cfg2.AddOptions(paramoption.New("remote", "vpn4.example.com 22 udp-client"))
+	cfg2.AddOptions(paramoption.New("port", "1194"))
+	cfg2.AddOptions(paramoption.New("proto", "tcp"))
 
 	endpoints = cfg2.GetEndpoints()
 	require.Len(t, endpoints, 4)
@@ -473,9 +475,9 @@ func TestGetEndpoints(t *testing.T) {
 
 	// Test with invalid remotes (should be skipped)
 	cfg3 := config.NewConfig()
-	cfg3.AddOptions(param_option.New("remote", "valid.example.com"))
-	cfg3.AddOptions(param_option.New("remote", "invalid.example.com invalid-port"))
-	cfg3.AddOptions(param_option.New("remote", "too many parts in this remote"))
+	cfg3.AddOptions(paramoption.New("remote", "valid.example.com"))
+	cfg3.AddOptions(paramoption.New("remote", "invalid.example.com invalid-port"))
+	cfg3.AddOptions(paramoption.New("remote", "too many parts in this remote"))
 	endpoints = cfg3.GetEndpoints()
 	require.Len(t, endpoints, 1)
 	assert.Equal(t, "valid.example.com", endpoints[0].Host)
@@ -494,10 +496,10 @@ func TestGetOptionAndGetOptions(t *testing.T) {
 
 	// Add some options
 	cfg.AddOptions(
-		param_option.New("verb", "3"),
-		param_option.New("remote", "vpn1.example.com"),
-		param_option.New("remote", "vpn2.example.com"),
-		flag_option.New("client"),
+		paramoption.New("verb", "3"),
+		paramoption.New("remote", "vpn1.example.com"),
+		paramoption.New("remote", "vpn2.example.com"),
+		flagoption.New("client"),
 	)
 
 	// Test GetOption returns first match

@@ -9,6 +9,9 @@ import (
 	"net/textproto"
 )
 
+// Default buffer size for test command channel.
+const defaultTestCommandChannelBuffer = 100
+
 type mockMiddleware struct {
 	OnStart        func(CommandWriter) error
 	OnStop         func(CommandWriter) error
@@ -19,19 +22,21 @@ func (m *mockMiddleware) Start(cmdWriter CommandWriter) error {
 	if m.OnStart != nil {
 		return m.OnStart(cmdWriter)
 	}
+
 	return nil
 }
 
 func (m *mockMiddleware) Stop(cmdWriter CommandWriter) {
 	if m.OnStop != nil {
-		m.OnStop(cmdWriter)
+		_ = m.OnStop(cmdWriter)
 	}
 }
 
-func (m *mockMiddleware) ProcessEvent(event string) (consumed bool, err error) {
+func (m *mockMiddleware) ProcessEvent(event string) (bool, error) {
 	if m.OnLineReceived != nil {
 		return m.OnLineReceived(event)
 	}
+
 	return true, nil
 }
 
@@ -42,19 +47,19 @@ type mockOpenvpnProcess struct {
 
 func (mop *mockOpenvpnProcess) Send(line string) error {
 	_, err := io.WriteString(mop.conn, line)
-	return err
+	return fmt.Errorf("failed to write string: %w", err)
 }
 func (mop *mockOpenvpnProcess) Disconnect() error {
-	return mop.conn.Close()
+	return fmt.Errorf("failed to close connection: %w", mop.conn.Close())
 }
 
 func connectTo(addr Addr) (*mockOpenvpnProcess, error) {
 	conn, err := net.Dial("tcp", addr.String())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to dial: %w", err)
 	}
 
-	commandChannel := make(chan string, 100)
+	commandChannel := make(chan string, defaultTestCommandChannelBuffer)
 	go sendStringsToChannel(conn, commandChannel)
 
 	return &mockOpenvpnProcess{
@@ -65,6 +70,7 @@ func connectTo(addr Addr) (*mockOpenvpnProcess, error) {
 
 func sendStringsToChannel(input io.Reader, ch chan<- string) {
 	reader := textproto.NewReader(bufio.NewReader(input))
+
 	for {
 		line, err := reader.ReadLine()
 		if err != nil {

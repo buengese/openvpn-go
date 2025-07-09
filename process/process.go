@@ -4,6 +4,7 @@ package process
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/buengese/openvpn-go/config"
 	"github.com/buengese/openvpn-go/internal/shell"
@@ -41,6 +42,7 @@ func New(ctx context.Context, openvpnBinary string, config *config.Config, useMa
 	if useManagement {
 		p.Management = management.NewManagement(p.ctx, management.LocalhostOnRandomPort)
 	}
+
 	return p
 }
 
@@ -51,6 +53,7 @@ func (p *Process) startWithManagement() error {
 		p.Management.AddMiddleware(auth.NewMiddleware(p.config.Auth))
 		p.config.AddFlag("management-query-passwords")
 	}
+
 	err := p.Management.Listen()
 	if err != nil {
 		return errors.Wrap(err, "failed to start management listener")
@@ -64,6 +67,7 @@ func (p *Process) startWithManagement() error {
 		p.Management.Stop()
 		return errors.Wrap(err, "could not create cli arguments")
 	}
+
 	p.cmd.AddArgs(arguments...)
 	p.cmd.SetWorkdir(p.config.Dir())
 
@@ -78,12 +82,15 @@ func (p *Process) startWithManagement() error {
 		if connAccepted {
 			return nil
 		}
+
 		return errors.New("management connection failed")
 	case exitError := <-p.cmd.CmdExitError:
 		p.Management.Stop()
+
 		if exitError != nil {
 			return exitError
 		}
+
 		return errors.New("openvpn process died")
 	}
 }
@@ -101,23 +108,25 @@ func (p *Process) startNoManagement() error {
 	if err != nil {
 		return errors.Wrap(err, "could not start openvpn process")
 	}
+
 	return nil
 }
 
-// Start starts the openvpn process
+// Start starts the openvpn process.
 func (p *Process) Start() error {
 	if p.useManagement {
 		return p.startWithManagement()
 	}
+
 	return p.startNoManagement()
 }
 
-// Wait waits for the openvpn process to exit
+// Wait waits for the openvpn process to exit.
 func (p *Process) Wait() error {
-	return p.cmd.Wait()
+	return fmt.Errorf("openvpn process wait failed: %w", p.cmd.Wait())
 }
 
-// Stop stops the openvpn process
+// Stop stops the openvpn process.
 func (p *Process) Stop() {
 	p.Management.Stop()
 

@@ -37,5 +37,6 @@ func GetLogger() *zerolog.Logger {
 
 		zerolog.DefaultContextLogger = &logger
 	})
+
 	return &logger
 }

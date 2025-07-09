@@ -68,6 +68,7 @@ func TestSendCommand(t *testing.T) {
 	mockedMiddleware.OnStart = func(cmdWriter CommandWriter) error {
 		res, _ := cmdWriter.SingleLineCommand("SAMPLECMD")
 		cmdResult <- res
+
 		return nil
 	}
 
@@ -82,7 +83,8 @@ func TestSendCommand(t *testing.T) {
 	select {
 	case cmd := <-mockedOpenvpn.CmdChan:
 		assert.Equal(t, "SAMPLECMD", cmd)
-		mockedOpenvpn.Send("SUCCESS: MSG\n")
+
+		_ = mockedOpenvpn.Send("SUCCESS: MSG\n")
 	case <-time.After(100 * time.Millisecond):
 		assert.Fail(t, "MockedOpenvpn expected to receive cmd in 100 milliseconds")
 	}

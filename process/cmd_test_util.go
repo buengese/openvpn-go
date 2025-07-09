@@ -22,7 +22,7 @@ const execTestStdErrorKey = "EXEC_HELPER_STDERR"
 const execTestDelayKey = "EXEC_HELPER_DELAY_MILISECONDS"
 const execTestArgsKey = "EXEC_HELPER_ARGS"
 
-// ExecCmdTestResult represents the mocked cmd exec result
+// ExecCmdTestResult represents the mocked cmd exec result.
 type ExecCmdTestResult struct {
 	command  string
 	exitCode int
@@ -140,6 +140,7 @@ func RunTestExecCmd() {
 	}
 
 	delay := os.Getenv(execTestDelayKey)
+
 	delayMillis, err := strconv.ParseInt(delay, 10, 64)
 	if err != nil {
 		os.Exit(1)
@@ -156,43 +157,49 @@ func RunTestExecCmd() {
 
 func startFakeOpenvpnManagement(address, port string, stop chan struct{}) {
 	addr := fmt.Sprintf("%v:%v", address, port)
+
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		log.Fatal("start error", err)
 	}
-	conn.Write([]byte(">INFO:OpenVPN Management Interface Version 1 -- type 'help' for more info\n"))
-	conn.Write([]byte(">STATE:1522855903,CONNECTING,,,,,,\n"))
 
-	conn.Write([]byte(">STATE:1522855903,WAIT,,,,,,\n"))
-	conn.Write([]byte(">STATE:1522855903,AUTH,,,,,,\n"))
-	conn.Write([]byte(">STATE:1522855904,GET_CONFIG,,,,,,\n"))
-	conn.Write([]byte(">STATE:1522855904,ASSIGN_IP,,10.8.0.133,,,,\n"))
-	conn.Write([]byte(fmt.Sprintf(">STATE:1522855905,CONNECTED,SUCCESS,10.8.0.133,%v,%v,,\n", address, port)))
+	_, _ = conn.Write([]byte(">INFO:OpenVPN Management Interface Version 1 -- type 'help' for more info\n"))
+	_, _ = conn.Write([]byte(">STATE:1522855903,CONNECTING,,,,,,\n"))
+
+	_, _ = conn.Write([]byte(">STATE:1522855903,WAIT,,,,,,\n"))
+	_, _ = conn.Write([]byte(">STATE:1522855903,AUTH,,,,,,\n"))
+	_, _ = conn.Write([]byte(">STATE:1522855904,GET_CONFIG,,,,,,\n"))
+	_, _ = conn.Write([]byte(">STATE:1522855904,ASSIGN_IP,,10.8.0.133,,,,\n"))
+	_, _ = conn.Write([]byte(fmt.Sprintf(">STATE:1522855905,CONNECTED,SUCCESS,10.8.0.133,%v,%v,,\n", address, port)))
 
 	for {
 		select {
 		case <-stop:
-			conn.Write([]byte(">STATE:1522855911,EXITING,SIGTERM,,,,,\n"))
+			_, _ = conn.Write([]byte(">STATE:1522855911,EXITING,SIGTERM,,,,,\n"))
 			conn.Close()
+
 			return
-		case <-time.After(100 * time.Millisecond):
-			conn.Write([]byte(">BYTECOUNT:36987,32252\n"))
+		case <-time.After(100 * time.Millisecond): //nolint:mnd // Test value
+			_, _ = conn.Write([]byte(">BYTECOUNT:36987,32252\n"))
 		}
 	}
 }
 
-// RunTestExecOpenvpn will run a simulated openvpn management
+// RunTestExecOpenvpn will run a simulated openvpn management.
 func RunTestExecOpenvpn() {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
 	}
+
 	sigc := make(chan os.Signal, 1)
 	stop := make(chan struct{})
+
 	signal.Notify(sigc,
 		syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
+
 	go func() {
 		<-sigc
 		stop <- struct{}{}

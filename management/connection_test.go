@@ -40,14 +40,13 @@ func TestSingleOutputCommandHandlesUnknownResponse(t *testing.T) {
 	success, err := conn.SingleLineCommand("anything")
 	assert.Empty(t, success)
 	assert.Equal(t, errors.New("unknown command response: 200 OK HTTP/1.1"), err)
-
 }
 
 func TestMultipleOutputCommandHandlesResults(t *testing.T) {
-
 	mockWriter := &mockWriter{}
 	outputChannel := make(chan string, 1)
 	conn := newCommandConnection(mockWriter, outputChannel)
+
 	go func() {
 		outputChannel <- "SUCCESS: great"
 		outputChannel <- "This is"
@@ -67,7 +66,6 @@ func TestMultipleOutputCommandHandlesResults(t *testing.T) {
 		},
 		output,
 	)
-
 }
 
 func TestClosedOutputChannelCausesCommandSendToFail(t *testing.T) {
@@ -75,6 +73,7 @@ func TestClosedOutputChannelCausesCommandSendToFail(t *testing.T) {
 	outputChannel := make(chan string, 1)
 	conn := newCommandConnection(mockWriter, outputChannel)
 	close(outputChannel)
+
 	_, err := conn.SingleLineCommand("irrelevant")
 	assert.Error(t, err)
 }

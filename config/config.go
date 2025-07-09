@@ -13,9 +13,9 @@ import (
 	"strings"
 
 	"github.com/buengese/openvpn-go/config/auth"
-	"github.com/buengese/openvpn-go/config/file_option"
-	"github.com/buengese/openvpn-go/config/flag_option"
-	"github.com/buengese/openvpn-go/config/param_option"
+	"github.com/buengese/openvpn-go/config/fileoption"
+	"github.com/buengese/openvpn-go/config/flagoption"
+	"github.com/buengese/openvpn-go/config/paramoption"
 	"github.com/pkg/errors"
 )
 
@@ -35,11 +35,9 @@ const (
 var (
 	ErrCannotReadFile = errors.New("cannot read file")
 
-	// Matches any XML open tag
-	// <tag>
+	// <tag>.
 	XMLOpenTag = regexp.MustCompile("<([a-zA-Z0-9-_]+)>")
-	// Matches any XML close tag
-	// </tag>
+	// </tag>.
 	XMLCloseTag = regexp.MustCompile("</([a-zA-Z0-9-_]+)>")
 )
 
@@ -65,8 +63,8 @@ func WithLoadFileOptions(load bool) ParseOption {
 	}
 }
 
-// ConfigOption is an interface for all configuration options.
-type ConfigOption interface {
+// Option is an interface for all configuration options.
+type Option interface {
 	Name() string
 	Value() string
 	ToLines() (string, error)
@@ -74,8 +72,8 @@ type ConfigOption interface {
 
 // Config is a representation of a OpenVPN configuration.
 type Config struct {
-	Options      []ConfigOption
-	Auth         *auth.AuthOption
+	Options      []Option
+	Auth         *auth.Option
 	path         string
 	parseOptions *parseOptions
 }
@@ -83,7 +81,7 @@ type Config struct {
 // NewConfig creates a new Config object.
 func NewConfig() *Config {
 	return &Config{
-		Options:      []ConfigOption{},
+		Options:      []Option{},
 		parseOptions: defaultParseOptions(),
 	}
 }
@@ -92,6 +90,7 @@ func NewConfig() *Config {
 func FromFile(filePath string, opts ...ParseOption) (*Config, error) {
 	options := defaultParseOptions()
 	options.LoadFileOptions = true // Default to true for FromFile
+
 	for _, opt := range opts {
 		opt(options)
 	}
@@ -113,6 +112,7 @@ func FromString(config string, opts ...ParseOption) (*Config, error) {
 	scanner := bufio.NewScanner(strings.NewReader(config))
 	c := NewConfig()
 	c.parseOptions = options
+
 	return c, c.scanConfig(scanner)
 }
 
@@ -126,6 +126,7 @@ func FromByteSlice(data []byte, opts ...ParseOption) (*Config, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	c := NewConfig()
 	c.parseOptions = options
+
 	return c, c.scanConfig(scanner)
 }
 
@@ -137,6 +138,7 @@ func isFileOption(line string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -149,13 +151,16 @@ func (c *Config) read() error {
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
+
 	return c.scanConfig(scanner)
 }
 
 // scanConfig parses a OpenVPN configuration file and adds the options to the Config object.
 func (c *Config) scanConfig(scanner *bufio.Scanner) error {
-	var inlineFile bool = false
+	var inlineFile = false
+
 	var buf strings.Builder
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
@@ -165,15 +170,19 @@ func (c *Config) scanConfig(scanner *bufio.Scanner) error {
 		if inlineFile {
 			if XMLCloseTag.MatchString(line) {
 				inlineFile = false
-				option := file_option.New(XMLCloseTag.FindStringSubmatch(line)[1], buf.String())
+				option := fileoption.New(XMLCloseTag.FindStringSubmatch(line)[1], buf.String())
 				c.addOptions(option)
 				buf.Reset()
+
 				continue
 			}
+
 			buf.WriteString(line)
 			buf.WriteRune('\n')
+
 			continue
 		}
+
 		if XMLOpenTag.MatchString(line) {
 			inlineFile = true
 			continue
@@ -181,38 +190,45 @@ func (c *Config) scanConfig(scanner *bufio.Scanner) error {
 		// load file
 		if isFileOption(line) {
 			parts := strings.SplitN(line, " ", 2)
-			option, err := file_option.NewFromPath(parts[0], path.Join(c.Dir(), parts[1]), c.parseOptions.LoadFileOptions)
+
+			option, err := fileoption.NewFromPath(parts[0], path.Join(c.Dir(), parts[1]), c.parseOptions.LoadFileOptions)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create file option: %w", err)
 			}
+
 			c.addOptions(option)
+
 			continue
 		}
 		// try parsing as option first
-		if option, err := param_option.FromLine(line); err == nil {
+		if option, err := paramoption.FromLine(line); err == nil {
 			c.addOptions(option)
 			continue
 		}
 		// parse as flag otherwise
-		flag := flag_option.FromConfig(line)
+		flag := flagoption.FromConfig(line)
 		c.addOptions(flag)
 	}
+
 	return nil
 }
 
 // ToString serializes the Config object and returns it as a string in the OpenVPN configuration format.
 func (c *Config) ToString() (string, error) {
 	var sb strings.Builder
+
 	for _, item := range c.Options {
 		content, err := item.ToLines()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to convert option to lines: %w", err)
 		}
+
 		_, err = sb.WriteString(content + "\n")
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to write string: %w", err)
 		}
 	}
+
 	return sb.String(), nil
 }
 
@@ -222,25 +238,30 @@ func (c *Config) Save(filePath string) error {
 	if filePath != "" {
 		c.path = filePath
 	}
+
 	if c.path == "" && filePath == "" {
 		c.path = path.Join(os.TempDir(), fmt.Sprintf("vpn-%d.conf", os.Getpid()))
 	}
+
 	file, err := os.Create(c.path)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create file: %w", err)
 	}
+
 	defer file.Close()
 
 	for _, item := range c.Options {
 		content, err := item.ToLines()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to convert option to lines: %w", err)
 		}
+
 		_, err = file.WriteString(content + "\n")
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to write to file: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -256,13 +277,15 @@ func (c *Config) ToCli() ([]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to write config")
 	}
+
 	arguments = append(arguments, "--config", tempPath)
 
 	if c.Auth != nil && c.Auth.AllowFile {
 		authValues, err := c.Auth.ToCli()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get auth CLI values: %w", err)
 		}
+
 		arguments = append(arguments, authValues...)
 	}
 
@@ -278,27 +301,27 @@ func (c *Config) Path() string {
 	return c.path
 }
 
-func (c *Config) addOptions(options ...ConfigOption) {
+func (c *Config) addOptions(options ...Option) {
 	c.Options = append(c.Options, options...)
 }
 
-// AddOptions adds one or more ConfigOption to the Config object.
-func (c *Config) AddOptions(options ...ConfigOption) {
+// AddOptions adds one or more Option to the Config object.
+func (c *Config) AddOptions(options ...Option) {
 	c.addOptions(options...)
 }
 
 // SetParam sets the value of a parameter.
 func (c *Config) AddParam(name string, values ...string) {
-	c.AddOptions(param_option.New(name, values...))
+	c.AddOptions(paramoption.New(name, values...))
 }
 
 // SetFlag sets a flag.
 func (c *Config) AddFlag(name string) {
-	c.AddOptions(flag_option.New(name))
+	c.AddOptions(flagoption.New(name))
 }
 
 func (c *Config) AddInlineFile(name string, content string) {
-	c.AddOptions(file_option.New(name, content))
+	c.AddOptions(fileoption.New(name, content))
 }
 
 // SetAuth sets username and password for authentication.
@@ -333,133 +356,151 @@ func (c *Config) SetDevice(device string) {
 }
 
 // SetTLSCaCert sets the CA certificate for TLS authentication.
-func (c *Config) SetTLSCaCert(caOpt file_option.FileOption) {
+func (c *Config) SetTLSCaCert(caOpt fileoption.FileOption) {
 	c.RemoveAllOptions("ca")
 	c.AddOptions(caOpt)
 }
 
 // GetTLSCaCert returns the CA certificate for TLS authentication.
-func (c *Config) GetTLSCaCert() (file_option.FileOption, error) {
+func (c *Config) GetTLSCaCert() (fileoption.FileOption, error) {
 	caOptions := c.GetOptions("ca")
 	if len(caOptions) == 0 {
-		return file_option.FileOption{}, fmt.Errorf("no CA certificate set")
+		return fileoption.FileOption{}, fmt.Errorf("no CA certificate set")
 	}
+
 	if len(caOptions) > 1 {
-		return file_option.FileOption{}, fmt.Errorf("multiple CA certificates set")
+		return fileoption.FileOption{}, fmt.Errorf("multiple CA certificates set")
 	}
-	caOpt, ok := caOptions[0].(file_option.FileOption)
+
+	caOpt, ok := caOptions[0].(fileoption.FileOption)
 	if !ok {
-		return file_option.FileOption{}, fmt.Errorf("CA option is not a file option")
+		return fileoption.FileOption{}, fmt.Errorf("CA option is not a file option")
 	}
+
 	return caOpt, nil
 }
 
 // SetTLSClientCert sets the client certificate for TLS authentication.
-func (c *Config) SetTLSClientCert(certOpt file_option.FileOption) {
+func (c *Config) SetTLSClientCert(certOpt fileoption.FileOption) {
 	c.RemoveAllOptions("cert")
 	c.AddOptions(certOpt)
 }
 
 // GetTLSClientCert returns the client certificate for TLS authentication.
-func (c *Config) GetTLSClientCert() (file_option.FileOption, error) {
+func (c *Config) GetTLSClientCert() (fileoption.FileOption, error) {
 	certOptions := c.GetOptions("cert")
 	if len(certOptions) == 0 {
-		return file_option.FileOption{}, fmt.Errorf("no client certificate set")
+		return fileoption.FileOption{}, fmt.Errorf("no client certificate set")
 	}
+
 	if len(certOptions) > 1 {
-		return file_option.FileOption{}, fmt.Errorf("multiple client certificates set")
+		return fileoption.FileOption{}, fmt.Errorf("multiple client certificates set")
 	}
-	certOpt, ok := certOptions[0].(file_option.FileOption)
+
+	certOpt, ok := certOptions[0].(fileoption.FileOption)
 	if !ok {
-		return file_option.FileOption{}, fmt.Errorf("client certificate option is not a file option")
+		return fileoption.FileOption{}, fmt.Errorf("client certificate option is not a file option")
 	}
+
 	return certOpt, nil
 }
 
 // SetTLSPrivateKey sets the client private key for TLS authentication.
-func (c *Config) SetTLSPrivateKey(keyFileOpt file_option.FileOption) {
+func (c *Config) SetTLSPrivateKey(keyFileOpt fileoption.FileOption) {
 	c.RemoveAllOptions("key")
 	c.AddOptions(keyFileOpt)
 }
 
 // GetTLSPrivateKey returns the client private key for TLS authentication.
-func (c *Config) GetTLSPrivateKey() (file_option.FileOption, error) {
+func (c *Config) GetTLSPrivateKey() (fileoption.FileOption, error) {
 	keyOptions := c.GetOptions("key")
 	if len(keyOptions) == 0 {
-		return file_option.FileOption{}, fmt.Errorf("no client private key set")
+		return fileoption.FileOption{}, fmt.Errorf("no client private key set")
 	}
+
 	if len(keyOptions) > 1 {
-		return file_option.FileOption{}, fmt.Errorf("multiple client private keys set")
+		return fileoption.FileOption{}, fmt.Errorf("multiple client private keys set")
 	}
-	keyOpt, ok := keyOptions[0].(file_option.FileOption)
+
+	keyOpt, ok := keyOptions[0].(fileoption.FileOption)
 	if !ok {
-		return file_option.FileOption{}, fmt.Errorf("client private key option is not a file option")
+		return fileoption.FileOption{}, fmt.Errorf("client private key option is not a file option")
 	}
+
 	return keyOpt, nil
 }
 
 // SetTLSCrypt sets the tls-crypt key for TLS authentication.
-func (c *Config) SetTLSCrypt(tlsCryptOpt file_option.FileOption) {
+func (c *Config) SetTLSCrypt(tlsCryptOpt fileoption.FileOption) {
 	c.RemoveAllOptions("tls-crypt")
 	c.AddOptions(tlsCryptOpt)
 }
 
 // GetTLSCrypt returns the tls-crypt key for TLS authentication.
-func (c *Config) GetTLSCrypt() (file_option.FileOption, error) {
+func (c *Config) GetTLSCrypt() (fileoption.FileOption, error) {
 	tlsCryptOptions := c.GetOptions("tls-crypt")
 	if len(tlsCryptOptions) == 0 {
-		return file_option.FileOption{}, fmt.Errorf("no tls-crypt key set")
+		return fileoption.FileOption{}, fmt.Errorf("no tls-crypt key set")
 	}
+
 	if len(tlsCryptOptions) > 1 {
-		return file_option.FileOption{}, fmt.Errorf("multiple tls-crypt keys set")
+		return fileoption.FileOption{}, fmt.Errorf("multiple tls-crypt keys set")
 	}
-	tlsCryptOpt, ok := tlsCryptOptions[0].(file_option.FileOption)
+
+	tlsCryptOpt, ok := tlsCryptOptions[0].(fileoption.FileOption)
 	if !ok {
-		return file_option.FileOption{}, fmt.Errorf("tls-crypt option is not a file option")
+		return fileoption.FileOption{}, fmt.Errorf("tls-crypt option is not a file option")
 	}
+
 	return tlsCryptOpt, nil
 }
 
 // SetTLSCrypt sets the tls-auth key for TLS authentication.
-func (c *Config) SetTLSAuth(tlsCryptOpt file_option.FileOption) {
+func (c *Config) SetTLSAuth(tlsCryptOpt fileoption.FileOption) {
 	c.RemoveAllOptions("tls-auth")
 	c.AddOptions(tlsCryptOpt)
 }
 
 // GetTLSCrypt returns the tls-auth key for TLS authentication.
-func (c *Config) GetTLSAuth() (file_option.FileOption, error) {
+func (c *Config) GetTLSAuth() (fileoption.FileOption, error) {
 	tlsAuthOptions := c.GetOptions("tls-auth")
 	if len(tlsAuthOptions) == 0 {
-		return file_option.FileOption{}, fmt.Errorf("no tls-auth key set")
+		return fileoption.FileOption{}, fmt.Errorf("no tls-auth key set")
 	}
+
 	if len(tlsAuthOptions) > 1 {
-		return file_option.FileOption{}, fmt.Errorf("multiple tls-auth keys set")
+		return fileoption.FileOption{}, fmt.Errorf("multiple tls-auth keys set")
 	}
-	tlsCryptOpt, ok := tlsAuthOptions[0].(file_option.FileOption)
+
+	tlsCryptOpt, ok := tlsAuthOptions[0].(fileoption.FileOption)
 	if !ok {
-		return file_option.FileOption{}, fmt.Errorf("tls-auth option is not a file option")
+		return fileoption.FileOption{}, fmt.Errorf("tls-auth option is not a file option")
 	}
+
 	return tlsCryptOpt, nil
 }
 
-// GetOption returns the first ConfigOption with the given name.
-func (c *Config) GetOption(name string) ConfigOption {
+// GetOption returns the first Option with the given name.
+func (c *Config) GetOption(name string) Option {
 	for _, option := range c.Options {
 		if option.Name() == name {
 			return option
 		}
 	}
+
 	return nil
 }
 
-// GetOptions returns all ConfigOptions with the given name.
-func (c *Config) GetOptions(name string) []ConfigOption {
-	options := make([]ConfigOption, 0)
+// GetOptions returns all Options with the given name.
+func (c *Config) GetOptions(name string) []Option {
+	options := make([]Option, 0)
+
 	for _, option := range c.Options {
 		if option.Name() == name {
 			options = append(options, option)
 		}
 	}
+
 	return options
 }
 
@@ -468,8 +509,10 @@ func (c *Config) GetProto() NetProtocol {
 	if proto == nil {
 		return TCP
 	}
+
 	s := strings.TrimSpace(proto.Value())
 	s = strings.ToLower(s)
+
 	switch s {
 	case "tcp", "tcp4", "tcp6":
 		return TCP
@@ -485,10 +528,12 @@ func (c *Config) GetPort() int {
 	if port == nil || len(port.Value()) == 0 {
 		return 0
 	}
+
 	p, err := strconv.Atoi(port.Value())
 	if err != nil {
 		return 0
 	}
+
 	return p
 }
 
@@ -497,17 +542,21 @@ func (c *Config) GetRemote() (string, int) {
 	if remote == nil || len(remote.Value()) == 0 {
 		return "", 0
 	}
+
 	parts := strings.Split(remote.Value(), " ")
 	if len(parts) == 1 {
 		return remote.Value(), 0
 	}
+
 	if len(parts) > 2 {
 		return "", 0
 	}
+
 	port, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return "", 0
 	}
+
 	return parts[0], port
 }
 
@@ -522,8 +571,7 @@ func clientProto(clientProto string) NetProtocol {
 	}
 }
 
-// GetEndpoints returns all remote endpoints defined in the configuration.
-// Parses remote <host> [<port> [<proto>]]
+// Parses remote <host> [<port> [<proto>]].
 func (c *Config) GetEndpoints() []Endpoint {
 	var (
 		remoteOptions = c.GetOptions("remote")
@@ -539,6 +587,7 @@ func (c *Config) GetEndpoints() []Endpoint {
 			endpoints = append(endpoints, Endpoint{Host: parts[0], Port: port, Proto: proto})
 			continue
 		}
+
 		if len(parts) > 3 {
 			continue // invalid remote option
 		}
@@ -557,31 +606,36 @@ func (c *Config) GetEndpoints() []Endpoint {
 		// Least common case: remote <host> <port> <proto>
 		endpoints = append(endpoints, Endpoint{Host: parts[0], Port: port, Proto: clientProto(parts[2])})
 	}
+
 	return endpoints
 }
 
-// RemoveOption removes the first ConfigOption with the given name from the Config object.
+// RemoveOption removes the first Option with the given name from the Config object.
 func (c *Config) RemoveOption(name string) bool {
 	index := -1
+
 	for idx, option := range c.Options {
 		if option.Name() == name {
 			index = idx
 			break
 		}
 	}
+
 	if index == -1 {
 		return false
 	}
 
 	c.Options[index] = c.Options[len(c.Options)-1]
 	c.Options = c.Options[:len(c.Options)-1]
+
 	return true
 }
 
-// RemoveAllOptions removes all ConfigOptions with the given name from the Config object.
+// RemoveAllOptions removes all Options with the given name from the Config object.
 // Returns the number of options that were removed.
 func (c *Config) RemoveAllOptions(name string) int {
 	removed := 0
+
 	for i := 0; i < len(c.Options); {
 		if c.Options[i].Name() == name {
 			// Remove by swapping with last element and truncating
@@ -592,5 +646,6 @@ func (c *Config) RemoveAllOptions(name string) int {
 			i++
 		}
 	}
+
 	return removed
 }
