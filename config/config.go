@@ -193,7 +193,7 @@ func (c *Config) scanConfig(scanner *bufio.Scanner) error {
 
 			option, err := fileoption.NewFromPath(parts[0], path.Join(c.Dir(), parts[1]), c.parseOptions.LoadFileOptions)
 			if err != nil {
-				return fmt.Errorf("failed to create file option: %w", err)
+				return fmt.Errorf("failed to create OpenVPN file option: %w", err)
 			}
 
 			c.addOptions(option)
@@ -245,7 +245,7 @@ func (c *Config) Save(filePath string) error {
 
 	file, err := os.Create(c.path)
 	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
+		return fmt.Errorf("failed to create configuration file: %w", err)
 	}
 
 	defer file.Close()
@@ -258,7 +258,7 @@ func (c *Config) Save(filePath string) error {
 
 		_, err = file.WriteString(content + "\n")
 		if err != nil {
-			return fmt.Errorf("failed to write to file: %w", err)
+			return fmt.Errorf("failed to write configuration to file: %w", err)
 		}
 	}
 
@@ -275,7 +275,7 @@ func (c *Config) ToCli() ([]string, error) {
 
 	err := c.Save(tempPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to write config")
+		return nil, errors.Wrap(err, "failed to save configuration")
 	}
 
 	arguments = append(arguments, "--config", tempPath)
@@ -283,7 +283,7 @@ func (c *Config) ToCli() ([]string, error) {
 	if c.Auth != nil && c.Auth.AllowFile {
 		authValues, err := c.Auth.ToCli()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get auth CLI values: %w", err)
+			return nil, fmt.Errorf("failed to get authentication CLI arguments: %w", err)
 		}
 
 		arguments = append(arguments, authValues...)

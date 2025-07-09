@@ -85,12 +85,12 @@ func (c *Command) Start() error {
 	if c.logOutput {
 		stdout, err := c.cmd.StdoutPipe()
 		if err != nil {
-			return fmt.Errorf("failed to get stdout pipe: %w", err)
+			return fmt.Errorf("failed to create stdout pipe for command: %w", err)
 		}
 
 		stderr, err := c.cmd.StderrPipe()
 		if err != nil {
-			return fmt.Errorf("failed to get stderr pipe: %w", err)
+			return fmt.Errorf("failed to create stderr pipe for command: %w", err)
 		}
 
 		go c.outputToLog(stdout, "stdout")
@@ -100,7 +100,7 @@ func (c *Command) Start() error {
 
 	err := c.cmd.Start()
 	if err != nil {
-		return fmt.Errorf("failed to start command: %w", err)
+		return fmt.Errorf("failed to start command %q: %w", c.path, err)
 	}
 
 	go c.waitForExit()

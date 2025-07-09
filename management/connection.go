@@ -38,7 +38,7 @@ func (sc *commandConnection) SingleLineCommand(template string, args ...interfac
 
 	cmdOutput, more := <-sc.cmdOutput
 	if !more {
-		return "", errors.New("connection is gone")
+		return "", errors.New("OpenVPN management connection is closed")
 	}
 
 	outputParts := strings.Split(cmdOutput, ":")
@@ -53,9 +53,9 @@ func (sc *commandConnection) SingleLineCommand(template string, args ...interfac
 	case cmdSuccess:
 		return messageText, nil
 	case cmdError:
-		return "", errors.New("command error: " + messageText)
+		return "", errors.New("OpenVPN management command error: " + messageText)
 	default:
-		return "", errors.New("unknown command response: " + cmdOutput)
+		return "", errors.New("unknown OpenVPN management response: " + cmdOutput)
 	}
 }
 

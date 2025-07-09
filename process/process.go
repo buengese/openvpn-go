@@ -56,7 +56,7 @@ func (p *Process) startWithManagement() error {
 
 	err := p.Management.Listen()
 	if err != nil {
-		return errors.Wrap(err, "failed to start management listener")
+		return errors.Wrap(err, "failed to start OpenVPN management listener")
 	}
 
 	addr := p.Management.BoundAddress
@@ -65,7 +65,7 @@ func (p *Process) startWithManagement() error {
 	arguments, err := p.config.ToCli()
 	if err != nil {
 		p.Management.Stop()
-		return errors.Wrap(err, "could not create cli arguments")
+		return errors.Wrap(err, "failed to convert configuration to CLI arguments")
 	}
 
 	p.cmd.AddArgs(arguments...)
@@ -74,7 +74,7 @@ func (p *Process) startWithManagement() error {
 	err = p.cmd.Start()
 	if err != nil {
 		p.Management.Stop()
-		return errors.Wrap(err, "could not start openvpn process")
+		return errors.Wrap(err, "failed to start OpenVPN process")
 	}
 
 	select {
@@ -83,15 +83,15 @@ func (p *Process) startWithManagement() error {
 			return nil
 		}
 
-		return errors.New("management connection failed")
+		return errors.New("OpenVPN management connection failed")
 	case exitError := <-p.cmd.CmdExitError:
 		p.Management.Stop()
 
 		if exitError != nil {
-			return exitError
+			return fmt.Errorf("OpenVPN process exited with error: %w", exitError)
 		}
 
-		return errors.New("openvpn process died")
+		return errors.New("OpenVPN process terminated unexpectedly")
 	}
 }
 
@@ -99,14 +99,14 @@ func (p *Process) startWithManagement() error {
 func (p *Process) startNoManagement() error {
 	args, err := p.config.ToCli()
 	if err != nil {
-		return errors.Wrap(err, "could not create cli arguments")
+		return errors.Wrap(err, "failed to convert configuration to CLI arguments")
 	}
 
 	p.cmd.AddArgs(args...)
 
 	err = p.cmd.Start()
 	if err != nil {
-		return errors.Wrap(err, "could not start openvpn process")
+		return errors.Wrap(err, "failed to start OpenVPN process")
 	}
 
 	return nil
@@ -123,7 +123,11 @@ func (p *Process) Start() error {
 
 // Wait waits for the openvpn process to exit.
 func (p *Process) Wait() error {
-	return fmt.Errorf("openvpn process wait failed: %w", p.cmd.Wait())
+	err := p.cmd.Wait()
+	if err != nil {
+		return fmt.Errorf("OpenVPN process wait failed: %w", err)
+	}
+	return nil
 }
 
 // Stop stops the openvpn process.

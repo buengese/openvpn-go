@@ -48,7 +48,7 @@ type mockOpenvpnProcess struct {
 func (mop *mockOpenvpnProcess) Send(line string) error {
 	_, err := io.WriteString(mop.conn, line)
 	if err != nil {
-		return fmt.Errorf("failed to write string: %w", err)
+		return fmt.Errorf("failed to send command: %w", err)
 	}
 
 	return nil
@@ -84,7 +84,7 @@ func sendStringsToChannel(input io.Reader, ch chan<- string) {
 	for {
 		line, err := reader.ReadLine()
 		if err != nil {
-			fmt.Println("Woops error:", err)
+			// Connection closed or other read error, stop processing
 			return
 		}
 		ch <- line

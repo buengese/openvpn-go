@@ -40,12 +40,12 @@ func (m *Middleware) ProcessEvent(line string) (bool, error) {
 
 	_, err := m.commandWriter.SingleLineCommand("password 'Auth' %s", m.auth.Password)
 	if err != nil {
-		return true, fmt.Errorf("failed to send password command: %w", err)
+		return true, fmt.Errorf("failed to send password to OpenVPN management interface: %w", err)
 	}
 
 	_, err = m.commandWriter.SingleLineCommand("username 'Auth' %s", m.auth.Username)
 	if err != nil {
-		return true, fmt.Errorf("failed to send username command: %w", err)
+		return true, fmt.Errorf("failed to send username to OpenVPN management interface: %w", err)
 	}
 
 	return true, nil

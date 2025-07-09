@@ -26,13 +26,13 @@ const defaultPollingInterval = 100 * time.Millisecond
 var rule = regexp.MustCompile(stateOutputMatcher)
 
 var (
-	ErrWaitTimeout = errors.New("timeout waiting for state")
+	ErrWaitTimeout = errors.New("timeout waiting for OpenVPN state change")
 
-	ErrAuthFailure = errors.New("authentication failure")
+	ErrAuthFailure = errors.New("OpenVPN authentication failure")
 
-	ErrRemoteDisconnect = errors.New("remote disconnect")
+	ErrRemoteDisconnect = errors.New("OpenVPN remote server disconnect")
 
-	ErrProcessExiting = errors.New("openvpn process exiting")
+	ErrProcessExiting = errors.New("OpenVPN process is exiting")
 )
 
 // Middleware handles state changes in the OpenVPN process.
@@ -86,7 +86,7 @@ func (m *Middleware) ProcessEvent(line string) (bool, error) {
 	// timestamp,STATE,detail, ...
 	parts := strings.Split(trimmedLine, ",")
 	if len(parts) < 2 {
-		return true, errors.New("invalid state line: " + line)
+		return true, fmt.Errorf("invalid OpenVPN state line format: %s", line)
 	}
 
 	newState := process.State(parts[1])
@@ -172,7 +172,7 @@ func (m *Middleware) WaitForConnected(timeout time.Duration) error {
 func extractOpenvpnState(line string) (process.State, error) {
 	matches := rule.FindStringSubmatch(line)
 	if len(matches) < 2 {
-		return process.UnknownState, errors.New("Line mismatch: " + line)
+		return process.UnknownState, fmt.Errorf("OpenVPN state line does not match expected format: %s", line)
 	}
 
 	return process.State(matches[1]), nil

@@ -22,14 +22,14 @@ func (o *Option) ToCli() ([]string, error) {
 	if o.AllowFile {
 		f, err := os.CreateTemp("", "ovpn-pass-")
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot create temporary file")
+			return nil, errors.Wrap(err, "failed to create temporary authentication file")
 		}
 
 		defer f.Close()
 
 		_, err = f.WriteString(o.Username + "\n" + o.Password)
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot write to temporary file")
+			return nil, errors.Wrap(err, "failed to write credentials to temporary file")
 		}
 
 		return []string{"--auth-user-pass", f.Name()}, nil

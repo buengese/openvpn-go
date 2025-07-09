@@ -4,6 +4,7 @@ package connect
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"time"
@@ -43,11 +44,10 @@ func AddFlags(cmdFlags *pflag.FlagSet) {
 func connectE(ctx context.Context, cfgpath string) error {
 	conf, err := config.FromFile(cfgpath)
 	if err != nil {
-		logging.GetLogger().Fatal().
-			Err(err).
-			Msg("failed to load config")
+		return fmt.Errorf("failed to load configuration file %q: %w", cfgpath, err)
 	}
-	// ser user password
+
+	// Set user password
 	if username != "" && password != "" {
 		conf.SetAuth(username, password, false)
 	}
@@ -58,32 +58,37 @@ func connectE(ctx context.Context, cfgpath string) error {
 
 	err = proc.Start()
 	if err != nil {
-		logging.GetLogger().Fatal().
-			Err(err).
-			Msg("failed to start openvpn process")
+		return fmt.Errorf("failed to start OpenVPN process: %w", err)
 	}
 
+	// Handle process exit errors in a separate goroutine
+	processExitError := make(chan error, 1)
 	go func() {
 		if err := proc.Wait(); err != nil {
-			logging.GetLogger().Fatal().
-				Err(err).
-				Msg("openvpn process exited")
+			processExitError <- fmt.Errorf("OpenVPN process exited unexpectedly: %w", err)
 		}
 	}()
 
 	err = statemw.WaitForConnected(defaultConnectionTimeout)
 	if err != nil {
-		logging.GetLogger().Fatal().
-			Err(err).
-			Msg("connection failed")
+		proc.Stop()
+		return fmt.Errorf("failed to establish VPN connection within %v: %w", defaultConnectionTimeout, err)
 	}
 
-	// Wait for a termination signal
+	logging.GetLogger().Info().Msg("VPN connection established successfully")
+
+	// Wait for either a termination signal or process exit
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
-	<-quit
+
+	select {
+	case <-quit:
+		logging.GetLogger().Info().Msg("Received interrupt signal, shutting down...")
+	case err := <-processExitError:
+		proc.Stop()
+		return err
+	}
 
 	proc.Stop()
-
 	return nil
 }

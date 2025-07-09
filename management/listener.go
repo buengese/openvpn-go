@@ -84,12 +84,12 @@ func (m *Management) Stop() {
 func (m *Management) Listen() error {
 	listener, err := net.Listen("tcp", m.BoundAddress.String())
 	if err != nil {
-		return errors.Wrap(err, "failed to bind to socket")
+		return errors.Wrap(err, "failed to bind OpenVPN management socket")
 	}
 
 	netAddress, ok := listener.Addr().(*net.TCPAddr)
 	if !ok {
-		return errors.New("failed to convert address to TCPAddr")
+		return errors.New("failed to convert socket address to TCP address")
 	}
 
 	m.BoundAddress = Addr{
@@ -99,7 +99,7 @@ func (m *Management) Listen() error {
 
 	log.Ctx(m.ctx).Info().
 		Str("address", m.BoundAddress.String()).
-		Msg("Listening for connection")
+		Msg("OpenVPN management interface listening for connection")
 
 	m.shutdownWaiter.Add(1)
 	go m.listen(listener)
@@ -178,7 +178,7 @@ func (m *Management) serve() {
 	}()
 
 	if err := m.startMiddlewares(connection); err != nil {
-		log.Ctx(m.ctx).Error().Err(err).Msg("Failed to start middlewares")
+		log.Ctx(m.ctx).Error().Err(err).Msg("Failed to start OpenVPN management middlewares")
 		return
 	}
 	defer m.stopMiddlewares(connection)
@@ -194,7 +194,7 @@ func (m *Management) startMiddlewares(connection CommandWriter) error {
 	for _, middleware := range m.middlewares {
 		err := middleware.Start(connection)
 		if err != nil {
-			return fmt.Errorf("failed to start middleware: %w", err)
+			return fmt.Errorf("failed to start OpenVPN management middleware: %w", err)
 		}
 	}
 
@@ -240,7 +240,7 @@ func (m *Management) processEvents(eventChannel chan string) {
 			if err != nil {
 				log.Ctx(m.ctx).Error().
 					Err(err).
-					Msg("failed to consume line")
+					Msg("failed to process OpenVPN management event")
 			}
 
 			lineConsumed = lineConsumed || consumed
