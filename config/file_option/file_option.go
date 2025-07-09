@@ -7,7 +7,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -40,7 +40,7 @@ func NewFromPath(name, filePath string, loadContent bool) (FileOption, error) {
 		return FileOption{name: name, filePath: filePath, content: "", loaded: false}, nil
 	}
 
-	content, err := ioutil.ReadFile(filePath)
+	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return FileOption{}, err
 	}
@@ -55,7 +55,7 @@ func (o FileOption) Save() error {
 	if o.filePath == "" {
 		return ErrNoPath
 	}
-	return ioutil.WriteFile(o.filePath, []byte(o.content), 0600)
+	return os.WriteFile(o.filePath, []byte(o.content), 0600)
 }
 
 func (o FileOption) ToLines() (string, error) {

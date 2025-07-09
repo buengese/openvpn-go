@@ -28,9 +28,7 @@ func (m *middleware) Start(commandWriter management.CommandWriter) error {
 	return nil
 }
 
-func (m *middleware) Stop(connection management.CommandWriter) {
-	return
-}
+func (m *middleware) Stop(connection management.CommandWriter) {}
 
 func (m *middleware) ProcessEvent(line string) (consumed bool, err error) {
 	match := rule.FindStringSubmatch(line)

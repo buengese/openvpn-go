@@ -3,7 +3,7 @@
 package config_test
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/buengese/openvpn-go/config"
@@ -169,15 +169,15 @@ func TestFileRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	f, err := ioutil.TempFile("", "config-test")
+	f, err := os.CreateTemp("", "config-test")
 	require.NoError(t, err)
 	err = cfg.Save(f.Name())
 	require.NoError(t, err)
 
 	// compare files
-	original, err := ioutil.ReadFile("testdata/out.ovpn")
+	original, err := os.ReadFile("testdata/out.ovpn")
 	require.NoError(t, err)
-	roundtrip, err := ioutil.ReadFile(f.Name())
+	roundtrip, err := os.ReadFile(f.Name())
 	require.NoError(t, err)
 
 	assert.Equal(t, original, roundtrip)

@@ -3,7 +3,7 @@
 package auth
 
 import (
-	"io/ioutil"
+	"os"
 
 	"github.com/pkg/errors"
 )
@@ -20,7 +20,7 @@ func OptionAuth(username, password string, file bool) *AuthOption {
 
 func (o *AuthOption) ToCli() ([]string, error) {
 	if o.AllowFile {
-		f, err := ioutil.TempFile("", "ovpn-pass-")
+		f, err := os.CreateTemp("", "ovpn-pass-")
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot create temporary file")
 		}
