@@ -330,54 +330,91 @@ func (c *Config) SetDevice(device string) {
 }
 
 // SetTLSCaCert sets the CA certificate for TLS authentication.
-func (c *Config) SetTLSCaCert(caFile string) error {
+func (c *Config) SetTLSCaCert(caOpt file_option.FileOption) {
 	c.RemoveAllOptions("ca")
-	path := path.Join(c.Dir(), caFile)
-	f, err := file_option.NewFromPath("ca", path, true)
-	if err != nil {
-		return err
-	}
-	c.AddOptions(f)
-	return nil
+	c.AddOptions(caOpt)
 }
 
-func (c *Config) GetTLSCaCert() {
+// GetTLSCaCert returns the CA certificate for TLS authentication.
+func (c *Config) GetTLSCaCert() (file_option.FileOption, error) {
+	caOptions := c.GetOptions("ca")
+	if len(caOptions) == 0 {
+		return file_option.FileOption{}, fmt.Errorf("no CA certificate set")
+	}
+	if len(caOptions) > 1 {
+		return file_option.FileOption{}, fmt.Errorf("multiple CA certificates set")
+	}
+	caOpt, ok := caOptions[0].(file_option.FileOption)
+	if !ok {
+		return file_option.FileOption{}, fmt.Errorf("CA option is not a file option")
+	}
+	return caOpt, nil
 }
 
 // SetTLSClientCert sets the client certificate for TLS authentication.
-func (c *Config) SetTLSClientCert(certFile string) error {
+func (c *Config) SetTLSClientCert(certOpt file_option.FileOption) {
 	c.RemoveAllOptions("cert")
-	path := path.Join(c.Dir(), certFile)
-	f, err := file_option.NewFromPath("cert", path, true)
-	if err != nil {
-		return err
+	c.AddOptions(certOpt)
+}
+
+// GetTLSClientCert returns the client certificate for TLS authentication.
+func (c *Config) GetTLSClientCert() (file_option.FileOption, error) {
+	certOptions := c.GetOptions("cert")
+	if len(certOptions) == 0 {
+		return file_option.FileOption{}, fmt.Errorf("no client certificate set")
 	}
-	c.AddOptions(f)
-	return nil
+	if len(certOptions) > 1 {
+		return file_option.FileOption{}, fmt.Errorf("multiple client certificates set")
+	}
+	certOpt, ok := certOptions[0].(file_option.FileOption)
+	if !ok {
+		return file_option.FileOption{}, fmt.Errorf("client certificate option is not a file option")
+	}
+	return certOpt, nil
 }
 
 // SetTLSPrivateKey sets the client private key for TLS authentication.
-func (c *Config) SetTLSPrivateKey(keyFile string) error {
+func (c *Config) SetTLSPrivateKey(keyFileOpt file_option.FileOption) {
 	c.RemoveAllOptions("key")
-	path := path.Join(c.Dir(), keyFile)
-	f, err := file_option.NewFromPath("key", path, true)
-	if err != nil {
-		return err
+	c.AddOptions(keyFileOpt)
+}
+
+// GetTLSPrivateKey returns the client private key for TLS authentication.
+func (c *Config) GetTLSPrivateKey() (file_option.FileOption, error) {
+	keyOptions := c.GetOptions("key")
+	if len(keyOptions) == 0 {
+		return file_option.FileOption{}, fmt.Errorf("no client private key set")
 	}
-	c.AddOptions(f)
-	return nil
+	if len(keyOptions) > 1 {
+		return file_option.FileOption{}, fmt.Errorf("multiple client private keys set")
+	}
+	keyOpt, ok := keyOptions[0].(file_option.FileOption)
+	if !ok {
+		return file_option.FileOption{}, fmt.Errorf("client private key option is not a file option")
+	}
+	return keyOpt, nil
 }
 
 // SetTLSCrypt sets the tls-crypt key for TLS authentication.
-func (c *Config) SetTLSCrypt(cryptFile string) error {
+func (c *Config) SetTLSCrypt(tlsCryptOpt file_option.FileOption) {
 	c.RemoveAllOptions("tls-crypt")
-	path := path.Join(c.Dir(), cryptFile)
-	f, err := file_option.NewFromPath("tls-crypt", path, true)
-	if err != nil {
-		return err
+	c.AddOptions(tlsCryptOpt)
+}
+
+// GetTLSCrypt returns the tls-crypt key for TLS authentication.
+func (c *Config) GetTLSCrypt() (file_option.FileOption, error) {
+	tlsCryptOptions := c.GetOptions("tls-crypt")
+	if len(tlsCryptOptions) == 0 {
+		return file_option.FileOption{}, fmt.Errorf("no tls-crypt key set")
 	}
-	c.AddOptions(f)
-	return nil
+	if len(tlsCryptOptions) > 1 {
+		return file_option.FileOption{}, fmt.Errorf("multiple tls-crypt keys set")
+	}
+	tlsCryptOpt, ok := tlsCryptOptions[0].(file_option.FileOption)
+	if !ok {
+		return file_option.FileOption{}, fmt.Errorf("tls-crypt option is not a file option")
+	}
+	return tlsCryptOpt, nil
 }
 
 // GetOption returns the first ConfigOption with the given name.
