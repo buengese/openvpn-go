@@ -1,5 +1,5 @@
 // Copyright 2023 Sebastian Bünger
-// SPDX-License-Identifier: AGPL-3.0-only OR MIT
+// SPDX-License-Identifier: MIT
 package connect
 
 import (
