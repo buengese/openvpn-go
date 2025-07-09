@@ -47,10 +47,20 @@ type mockOpenvpnProcess struct {
 
 func (mop *mockOpenvpnProcess) Send(line string) error {
 	_, err := io.WriteString(mop.conn, line)
-	return fmt.Errorf("failed to write string: %w", err)
+	if err != nil {
+		return fmt.Errorf("failed to write string: %w", err)
+	}
+
+	return nil
 }
+
 func (mop *mockOpenvpnProcess) Disconnect() error {
-	return fmt.Errorf("failed to close connection: %w", mop.conn.Close())
+	err := mop.conn.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close connection: %w", err)
+	}
+
+	return nil
 }
 
 func connectTo(addr Addr) (*mockOpenvpnProcess, error) {
