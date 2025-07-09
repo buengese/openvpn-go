@@ -245,15 +245,18 @@ func (c *Config) Save(filePath string) error {
 }
 
 // ToCli writes the Config to a file and returns the arguments to pass to OpenVPN.
-// If no file path is set, the Config is written to a temporary file and must be deleted manually.
+// The Config is always written to a temporary file for CLI use and must be deleted manually.
 func (c *Config) ToCli() ([]string, error) {
 	arguments := make([]string, 0)
 
-	err := c.Save("")
+	// Create a temporary file path to avoid overwriting the original config file
+	tempPath := path.Join(os.TempDir(), fmt.Sprintf("vpn-cli-%d.conf", os.Getpid()))
+
+	err := c.Save(tempPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to write config")
 	}
-	arguments = append(arguments, "--config", c.path)
+	arguments = append(arguments, "--config", tempPath)
 
 	if c.Auth != nil && c.Auth.AllowFile {
 		authValues, err := c.Auth.ToCli()
