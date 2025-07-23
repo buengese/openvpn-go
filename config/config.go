@@ -562,9 +562,9 @@ func (c *Config) GetRemote() (string, int) {
 
 func clientProto(clientProto string) NetProtocol {
 	switch strings.ToLower(clientProto) {
-	case "tcp-client", "tcp4-client", "tcp6-client":
+	case "tcp", "tcp-client", "tcp4-client", "tcp6-client":
 		return TCP
-	case "udp-client", "udp4-client", "udp6-client":
+	case "udp", "udp-client", "udp4-client", "udp6-client":
 		return UDP
 	default:
 		return TCP // Default to TCP if unknown

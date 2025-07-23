@@ -3,6 +3,7 @@
 package config_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -115,6 +116,10 @@ func TestToFile(t *testing.T) {
 func TestToConfig(t *testing.T) {
 	cfg, err := config.FromFile("testdata/complex.ovpn")
 	require.NoError(t, err)
+
+	ca, err := cfg.GetTLSCaCert()
+	require.NoError(t, err)
+	fmt.Printf("CA Certificate: %s\n", ca.Value())
 
 	_, err = cfg.ToString()
 	require.NoError(t, err)
