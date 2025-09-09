@@ -10,7 +10,7 @@ import (
 	"io"
 	"os/exec"
 
-	"github.com/buengese/openvpn-go/internal/logging"
+	"github.com/buengese/openvpn-go/logging"
 )
 
 var (
@@ -27,6 +27,7 @@ type Command struct {
 
 	ctx       context.Context
 	logOutput bool
+	logger    *logging.Logger
 
 	cmd          *exec.Cmd
 	cancel       context.CancelFunc
@@ -36,7 +37,7 @@ type Command struct {
 
 // NewCommand creates a new command wrapper for the given command path and
 // arguments.
-func NewCommand(ctx context.Context, path string, args ...string) *Command {
+func NewCommand(ctx context.Context, logger *logging.Logger, path string, args ...string) *Command {
 	ctx, cancel := context.WithCancel(ctx)
 
 	return &Command{
@@ -44,6 +45,7 @@ func NewCommand(ctx context.Context, path string, args ...string) *Command {
 		args:   args,
 		ctx:    ctx,
 		cancel: cancel,
+		logger: logger,
 
 		CmdExitError: make(chan error),
 		waitDone:     make(chan struct{}),
@@ -72,7 +74,7 @@ func (c *Command) Start() error {
 		return ErrEmptyCommand
 	}
 
-	logging.FromContext(c.ctx).Debug("starting command",
+	c.logger.LogLifecycle(c.ctx, "starting command",
 		"command", c.path,
 		"args", c.args)
 
@@ -136,13 +138,12 @@ func (c *Command) Stop() {
 // outputToLog reads the output of the command and logs it to the logger.
 func (c *Command) outputToLog(output io.ReadCloser, prefix string) {
 	scanner := bufio.NewScanner(output)
-	logger := logging.FromContext(c.ctx)
 
 	for scanner.Scan() {
-		logger.Debug(scanner.Text(), "channel", prefix)
+		c.logger.LogProcessOutput(c.ctx, scanner.Text(), "channel", prefix)
 	}
 
 	if err := scanner.Err(); err != nil {
-		logger.Error("failed to read", "error", err, "channel", prefix)
+		c.logger.LogError("failed to read", "error", err, "channel", prefix)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/buengese/openvpn-go/internal/shell"
+	"github.com/buengese/openvpn-go/logging"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,7 +22,9 @@ func TestWaitAndStopProcessDoesNotDeadLocks(t *testing.T) {
 	execTestHelper := NewExecCmdTestHelper("TestHelperProcess")
 	execTestHelper.AddExecResult("", "", 0, 10000, "openvpn")
 
-	process := shell.NewCommand(context.Background(), "openvpn", []string{}...)
+	// Create a silent logger for testing
+	logger := logging.NewLogger(logging.WithSilentLogging())
+	process := shell.NewCommand(context.Background(), logger, "openvpn")
 	processStarted := sync.WaitGroup{}
 	processStarted.Add(1)
 
@@ -59,7 +62,9 @@ func TestWaitReturnsIfProcessDies(t *testing.T) {
 	execTestHelper := NewExecCmdTestHelper("TestHelperProcess")
 	execTestHelper.AddExecResult("", "", 0, 100, "openvpn")
 
-	process := shell.NewCommand(context.Background(), "openvpn", []string{}...)
+	// Create a silent logger for testing
+	logger := logging.NewLogger(logging.WithSilentLogging())
+	process := shell.NewCommand(context.Background(), logger, "openvpn")
 	processWaitExited := make(chan int, 1)
 
 	go func() {

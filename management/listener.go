@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/buengese/openvpn-go/internal/logging"
+	"github.com/buengese/openvpn-go/logging"
 )
 
 // Default buffer size for event channel.
@@ -45,12 +45,13 @@ type Management struct {
 	Connected    chan bool
 
 	middlewares []Middleware
+	logger      *logging.Logger
 
 	shutdownWaiter sync.WaitGroup
 }
 
 // NewManagement creates new manager for given sock address.
-func NewManagement(ctx context.Context, addr Addr) *Management {
+func NewManagement(ctx context.Context, addr Addr, logOpts ...logging.LogOption) *Management {
 	ctx, cancel := context.WithCancel(ctx)
 
 	return &Management{
@@ -58,6 +59,7 @@ func NewManagement(ctx context.Context, addr Addr) *Management {
 		Connected:    make(chan bool, 1),
 		ctx:          ctx,
 		cancel:       cancel,
+		logger:       logging.NewLogger(logOpts...),
 
 		shutdownWaiter: sync.WaitGroup{},
 	}
@@ -97,7 +99,7 @@ func (m *Management) Listen() error {
 		netAddress.Port,
 	}
 
-	logging.FromContext(m.ctx).Info("OpenVPN management interface listening for connection",
+	m.logger.LogLifecycle(m.ctx, "OpenVPN management interface listening for connection",
 		"address", m.BoundAddress.String())
 
 	m.shutdownWaiter.Add(1)
@@ -120,7 +122,7 @@ func (m *Management) listen(listener net.Listener) {
 	go func() {
 		conn, err := listener.Accept()
 		if err != nil {
-			logging.FromContext(m.ctx).Error("Connection accept error", "error", err)
+			m.logger.LogError("Connection accept error", "error", err)
 			close(connChannel)
 
 			return
@@ -161,7 +163,7 @@ func (m *Management) serve() {
 	events := make(chan string, defaultEventChannelBuffer)
 	connection := newCommandConnection(m.conn, cmdOutput)
 
-	logging.FromContext(m.ctx).Info("New connection accepted",
+	m.logger.LogLifecycle(m.ctx, "New connection accepted",
 		"remote", m.conn.RemoteAddr().String())
 
 	connectionWaiter := sync.WaitGroup{}
@@ -174,7 +176,7 @@ func (m *Management) serve() {
 	}()
 
 	if err := m.startMiddlewares(connection); err != nil {
-		logging.FromContext(m.ctx).Error("Failed to start OpenVPN management middlewares", "error", err)
+		m.logger.LogError("Failed to start OpenVPN management middlewares", "error", err)
 		return
 	}
 	defer m.stopMiddlewares(connection)
@@ -215,7 +217,7 @@ func (m *Management) readEvents(cmdOutput, events chan string) {
 			return
 		}
 
-		logging.FromContext(m.ctx).Debug(line, "channel", "management")
+		m.logger.LogManagementProto(m.ctx, line, "channel", "management")
 
 		output := cmdOutput
 		if strings.HasPrefix(line, ">") {
@@ -232,7 +234,7 @@ func (m *Management) processEvents(eventChannel chan string) {
 		for _, middleware := range m.middlewares {
 			consumed, err := middleware.ProcessEvent(event)
 			if err != nil {
-				logging.FromContext(m.ctx).Error("failed to process OpenVPN management event", "error", err)
+				m.logger.LogError("failed to process OpenVPN management event", "error", err)
 			}
 
 			lineConsumed = lineConsumed || consumed

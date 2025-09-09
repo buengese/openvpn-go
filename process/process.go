@@ -9,6 +9,7 @@ import (
 
 	"github.com/buengese/openvpn-go/config"
 	"github.com/buengese/openvpn-go/internal/shell"
+	"github.com/buengese/openvpn-go/logging"
 	"github.com/buengese/openvpn-go/management"
 	"github.com/buengese/openvpn-go/middlewares/client/auth"
 )
@@ -19,28 +20,36 @@ type Process struct {
 
 	config *config.Config
 	cmd    *shell.Command
+	logger *logging.Logger
 
 	useManagement bool
 	Management    *management.Management
 }
 
 // New creates a new openvpn process with the given configuration.
-func New(ctx context.Context, openvpnBinary string, config *config.Config, useManagement bool) *Process {
-	cmd := shell.NewCommand(ctx, openvpnBinary)
+func New(ctx context.Context, openvpnBinary string, config *config.Config, useManagement bool, logOpts ...logging.LogOption) *Process {
+	logger := logging.NewLogger(logOpts...)
+	cmd := shell.NewCommand(ctx, logger, openvpnBinary)
 	cmd.LogOutput(true)
 
 	p := &Process{
 		ctx:    ctx,
 		config: config,
 		cmd:    cmd,
+		logger: logger,
 
 		useManagement: useManagement,
 	}
 	if useManagement {
-		p.Management = management.NewManagement(p.ctx, management.LocalhostOnRandomPort)
+		p.Management = management.NewManagement(p.ctx, management.LocalhostOnRandomPort, logOpts...)
 	}
 
 	return p
+}
+
+// Logger returns the process logger
+func (p *Process) Logger() *logging.Logger {
+	return p.logger
 }
 
 // startWithManagement starts the openvpn process and the management interface.

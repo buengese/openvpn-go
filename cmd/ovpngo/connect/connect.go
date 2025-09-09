@@ -11,7 +11,7 @@ import (
 
 	"github.com/buengese/openvpn-go/config"
 	"github.com/buengese/openvpn-go/internal/cmd"
-	"github.com/buengese/openvpn-go/internal/logging"
+	"github.com/buengese/openvpn-go/logging"
 	"github.com/buengese/openvpn-go/middlewares/state"
 	"github.com/buengese/openvpn-go/process"
 	"github.com/spf13/cobra"
@@ -32,7 +32,7 @@ var Command = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(command *cobra.Command, args []string) error {
 		cmd.CheckArgs(1, 1, command, args)
-		return connectE(command.Context(), args[0])
+		return connectE(command.Context(), command, args[0])
 	},
 }
 
@@ -41,7 +41,7 @@ func AddFlags(cmdFlags *pflag.FlagSet) {
 	cmdFlags.StringVarP(&password, "password", "p", "", "Password for authentication")
 }
 
-func connectE(ctx context.Context, cfgpath string) error {
+func connectE(ctx context.Context, command *cobra.Command, cfgpath string) error {
 	conf, err := config.FromFile(cfgpath)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration file %q: %w", cfgpath, err)
@@ -52,7 +52,31 @@ func connectE(ctx context.Context, cfgpath string) error {
 		conf.SetAuth(username, password, false)
 	}
 
-	proc := process.New(ctx, "openvpn", conf, true)
+	// Build logging options based on command line flags
+	var logOpts []logging.LogOption
+
+	// Check global flags
+	verbose, _ := command.Flags().GetBool("verbose")
+	quiet, _ := command.Flags().GetBool("quiet")
+	showProcessOutput, _ := command.Flags().GetBool("show-process-output")
+	showProtocol, _ := command.Flags().GetBool("show-protocol")
+
+	if quiet {
+		logOpts = append(logOpts, logging.WithSilentLogging())
+	} else if verbose {
+		logOpts = append(logOpts, logging.WithVerboseLogging())
+	} else {
+		// Use selective logging based on individual flags
+		if showProcessOutput {
+			logOpts = append(logOpts, logging.WithProcessOutput())
+		}
+		if showProtocol {
+			logOpts = append(logOpts, logging.WithManagementProtocol())
+		}
+	}
+
+	// Create process with configured logging
+	proc := process.New(ctx, "openvpn", conf, true, logOpts...)
 	statemw := state.NewMiddleware()
 	proc.Management.AddMiddleware(statemw)
 
@@ -75,7 +99,8 @@ func connectE(ctx context.Context, cfgpath string) error {
 		return fmt.Errorf("failed to establish VPN connection within %v: %w", defaultConnectionTimeout, err)
 	}
 
-	logging.FromContext(ctx).Info("VPN connection established successfully")
+	// Use the logger from the process to log success
+	proc.Logger().LogLifecycle(ctx, "VPN connection established successfully")
 
 	// Wait for either a termination signal or process exit
 	quit := make(chan os.Signal, 1)
@@ -83,7 +108,7 @@ func connectE(ctx context.Context, cfgpath string) error {
 
 	select {
 	case <-quit:
-		logging.FromContext(ctx).Info("Received interrupt signal, shutting down...")
+		proc.Logger().LogLifecycle(ctx, "Received interrupt signal, shutting down...")
 	case err := <-processExitError:
 		proc.Stop()
 		return err
