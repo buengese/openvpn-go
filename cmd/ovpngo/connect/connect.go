@@ -75,7 +75,7 @@ func connectE(ctx context.Context, cfgpath string) error {
 		return fmt.Errorf("failed to establish VPN connection within %v: %w", defaultConnectionTimeout, err)
 	}
 
-	logging.GetLogger().Info().Msg("VPN connection established successfully")
+	logging.FromContext(ctx).Info("VPN connection established successfully")
 
 	// Wait for either a termination signal or process exit
 	quit := make(chan os.Signal, 1)
@@ -83,7 +83,7 @@ func connectE(ctx context.Context, cfgpath string) error {
 
 	select {
 	case <-quit:
-		logging.GetLogger().Info().Msg("Received interrupt signal, shutting down...")
+		logging.FromContext(ctx).Info("Received interrupt signal, shutting down...")
 	case err := <-processExitError:
 		proc.Stop()
 		return err

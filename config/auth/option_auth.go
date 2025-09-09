@@ -3,9 +3,8 @@
 package auth
 
 import (
+	"fmt"
 	"os"
-
-	"github.com/pkg/errors"
 )
 
 type Option struct {
@@ -22,14 +21,14 @@ func (o *Option) ToCli() ([]string, error) {
 	if o.AllowFile {
 		f, err := os.CreateTemp("", "ovpn-pass-")
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to create temporary authentication file")
+			return nil, fmt.Errorf("failed to create temporary authentication file: %w", err)
 		}
 
 		defer f.Close()
 
 		_, err = f.WriteString(o.Username + "\n" + o.Password)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to write credentials to temporary file")
+			return nil, fmt.Errorf("failed to write credentials to temporary file: %w", err)
 		}
 
 		return []string{"--auth-user-pass", f.Name()}, nil

@@ -4,15 +4,13 @@ package process
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/buengese/openvpn-go/config"
 	"github.com/buengese/openvpn-go/internal/shell"
 	"github.com/buengese/openvpn-go/management"
 	"github.com/buengese/openvpn-go/middlewares/client/auth"
-	"github.com/rs/zerolog/log"
-
-	"github.com/pkg/errors"
 )
 
 // Process wraps an openvpn process and provides a management interface to it if requested.
@@ -28,7 +26,6 @@ type Process struct {
 
 // New creates a new openvpn process with the given configuration.
 func New(ctx context.Context, openvpnBinary string, config *config.Config, useManagement bool) *Process {
-	ctx = log.Ctx(ctx).With().Str("component", "openvpn").Logger().WithContext(ctx)
 	cmd := shell.NewCommand(ctx, openvpnBinary)
 	cmd.LogOutput(true)
 
@@ -56,7 +53,7 @@ func (p *Process) startWithManagement() error {
 
 	err := p.Management.Listen()
 	if err != nil {
-		return errors.Wrap(err, "failed to start OpenVPN management listener")
+		return fmt.Errorf("failed to start OpenVPN management listener: %w", err)
 	}
 
 	addr := p.Management.BoundAddress
@@ -65,7 +62,7 @@ func (p *Process) startWithManagement() error {
 	arguments, err := p.config.ToCli()
 	if err != nil {
 		p.Management.Stop()
-		return errors.Wrap(err, "failed to convert configuration to CLI arguments")
+		return fmt.Errorf("failed to convert configuration to CLI arguments: %w", err)
 	}
 
 	p.cmd.AddArgs(arguments...)
@@ -74,7 +71,7 @@ func (p *Process) startWithManagement() error {
 	err = p.cmd.Start()
 	if err != nil {
 		p.Management.Stop()
-		return errors.Wrap(err, "failed to start OpenVPN process")
+		return fmt.Errorf("failed to start OpenVPN process: %w", err)
 	}
 
 	select {
@@ -99,14 +96,14 @@ func (p *Process) startWithManagement() error {
 func (p *Process) startNoManagement() error {
 	args, err := p.config.ToCli()
 	if err != nil {
-		return errors.Wrap(err, "failed to convert configuration to CLI arguments")
+		return fmt.Errorf("failed to convert configuration to CLI arguments: %w", err)
 	}
 
 	p.cmd.AddArgs(args...)
 
 	err = p.cmd.Start()
 	if err != nil {
-		return errors.Wrap(err, "failed to start OpenVPN process")
+		return fmt.Errorf("failed to start OpenVPN process: %w", err)
 	}
 
 	return nil
@@ -136,23 +133,3 @@ func (p *Process) Stop() {
 
 	p.cmd.Stop()
 }
-
-/*
-func (p *Process) Stop() {
-	waiter := sync.WaitGroup{}
-	waiter.Add(1)
-	go func() {
-		defer waiter.Done()
-		p.cmd.Stop()
-		fmt.Printf("command stopped\n")
-	}()
-
-	waiter.Add(1)
-	go func() {
-		defer waiter.Done()
-		p.Management.Stop()
-		fmt.Printf("management stopped\n")
-	}()
-	waiter.Wait()
-}
-*/

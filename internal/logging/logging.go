@@ -3,40 +3,29 @@
 package logging
 
 import (
+	"context"
 	"io"
-	"os"
-	"sync"
-	"time"
-
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/pkgerrors"
+	"log/slog"
 )
 
-//nolint:gochecknoglobals // Globals are ok for logging imho.
-var (
-	once   sync.Once
-	logger zerolog.Logger
-)
+type contextKey struct{}
 
-// GetLogger returns a logger instance.
-func GetLogger() *zerolog.Logger {
-	once.Do(func() {
-		zerolog.TimeFieldFormat = time.RFC3339Nano
-		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack //nolint:reassign // Same here.
+var loggerKey = contextKey{}
 
-		var output io.Writer = zerolog.ConsoleWriter{
-			Out:        os.Stdout,
-			TimeFormat: time.RFC3339,
-		}
+// FromContext returns a logger from context, or a no-op logger if none exists.
+func FromContext(ctx context.Context) *slog.Logger {
+	if logger, ok := ctx.Value(loggerKey).(*slog.Logger); ok {
+		return logger
+	}
+	return noopLogger()
+}
 
-		logger = zerolog.New(output).
-			Level(zerolog.TraceLevel).
-			With().
-			Timestamp().
-			Logger()
+// ToContext adds a logger to the context.
+func ToContext(ctx context.Context, logger *slog.Logger) context.Context {
+	return context.WithValue(ctx, loggerKey, logger)
+}
 
-		zerolog.DefaultContextLogger = &logger
-	})
-
-	return &logger
+// noopLogger returns a logger that discards all output.
+func noopLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }

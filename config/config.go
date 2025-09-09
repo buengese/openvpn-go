@@ -5,6 +5,7 @@ package config
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -16,7 +17,6 @@ import (
 	"github.com/buengese/openvpn-go/config/fileoption"
 	"github.com/buengese/openvpn-go/config/flagoption"
 	"github.com/buengese/openvpn-go/config/paramoption"
-	"github.com/pkg/errors"
 )
 
 type NetProtocol string
@@ -275,7 +275,7 @@ func (c *Config) ToCli() ([]string, error) {
 
 	err := c.Save(tempPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to save configuration")
+		return nil, fmt.Errorf("failed to save configuration: %w", err)
 	}
 
 	arguments = append(arguments, "--config", tempPath)

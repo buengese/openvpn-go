@@ -10,7 +10,7 @@ import (
 	"io"
 	"os/exec"
 
-	"github.com/rs/zerolog/log"
+	"github.com/buengese/openvpn-go/internal/logging"
 )
 
 var (
@@ -72,10 +72,9 @@ func (c *Command) Start() error {
 		return ErrEmptyCommand
 	}
 
-	log.Ctx(c.ctx).Trace().
-		Str("command", c.path).
-		Interface("args", c.args).
-		Msg("starting command")
+	logging.FromContext(c.ctx).Debug("starting command",
+		"command", c.path,
+		"args", c.args)
 
 	c.cmd = exec.CommandContext(c.ctx, c.path, c.args...)
 	if c.workdir != "" {
@@ -137,13 +136,13 @@ func (c *Command) Stop() {
 // outputToLog reads the output of the command and logs it to the logger.
 func (c *Command) outputToLog(output io.ReadCloser, prefix string) {
 	scanner := bufio.NewScanner(output)
-	logger := log.Ctx(c.ctx).With().Str("channel", prefix).Logger()
+	logger := logging.FromContext(c.ctx)
 
 	for scanner.Scan() {
-		logger.Trace().Msg(scanner.Text())
+		logger.Debug(scanner.Text(), "channel", prefix)
 	}
 
 	if err := scanner.Err(); err != nil {
-		logger.Error().Err(err).Msg("failed to read")
+		logger.Error("failed to read", "error", err, "channel", prefix)
 	}
 }

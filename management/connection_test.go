@@ -28,7 +28,7 @@ func TestSingleOutputCommandHandlesFailure(t *testing.T) {
 
 	success, err := conn.SingleLineCommand("anything")
 	assert.Empty(t, success)
-	assert.Equal(t, errors.New("command error: error"), err)
+	assert.Equal(t, errors.New("OpenVPN management command error: error"), err)
 }
 
 func TestSingleOutputCommandHandlesUnknownResponse(t *testing.T) {
@@ -39,7 +39,7 @@ func TestSingleOutputCommandHandlesUnknownResponse(t *testing.T) {
 
 	success, err := conn.SingleLineCommand("anything")
 	assert.Empty(t, success)
-	assert.Equal(t, errors.New("unknown command response: 200 OK HTTP/1.1"), err)
+	assert.Equal(t, errors.New("unknown OpenVPN management response: 200 OK HTTP/1.1"), err)
 }
 
 func TestMultipleOutputCommandHandlesResults(t *testing.T) {
